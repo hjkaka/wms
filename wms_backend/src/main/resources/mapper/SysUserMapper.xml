@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 第2行：DOCTYPE 声明，MyBatis 的固定写法 -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 第3行：mapper 根标签
+     namespace = 对应的 Mapper 接口的全类名
+     告诉 MyBatis：这个 XML 文件和 SysUserMapper 接口是一对的
+-->
+<mapper namespace="com.example.wms_backend.mapper.SysUserMapper">
+
+    <!-- ====== 通用结果映射 ======
+         resultMap = 定义"数据库字段"如何映射成"Java属性"
+         虽然我们开了下划线转驼峰，但写个 resultMap 更清晰、更灵活
+    -->
+    <resultMap id="SysUserMap" type="com.example.wms_backend.entity.SysUser">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="password" column="password"/>
+        <result property="realName" column="real_name"/>
+        <result property="phone" column="phone"/>
+        <result property="role" column="role"/>
+        <result property="status" column="status"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <!-- ====== 公共字段（写一次，到处用）====== -->
+    <sql id="Base_Column_List">
+        id, username, password, real_name, phone, role, status, create_time, update_time
+    </sql>
+
+    <!-- ====== 根据用户名查询用户 ======
+         id = 接口里的方法名（必须完全一致！）
+         resultMap = 返回结果用上面定义的 SysUserMap
+         parameterType = 参数类型（String）
+    -->
+    <select id="findByUsername" resultMap="SysUserMap" parameterType="string">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM sys_user
+        WHERE username = #{username}
+    </select>
+
+    <!-- ====== 根据ID查询用户 ====== -->
+    <select id="findById" resultMap="SysUserMap" parameterType="long">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM sys_user
+        WHERE id = #{id}
+    </select>
+
+</mapper>

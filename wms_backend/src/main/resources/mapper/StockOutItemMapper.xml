@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace：必须和接口全类名一致 -->
+<mapper namespace="com.example.wms_backend.mapper.StockOutItemMapper">
+
+    <!-- ===== 结果映射 ===== -->
+    <resultMap id="StockOutItemMap" type="com.example.wms_backend.entity.StockOutItem">
+        <id property="id" column="id"/>
+        <result property="orderId" column="order_id"/>
+        <result property="productId" column="product_id"/>
+        <result property="quantity" column="quantity"/>
+        <result property="unitPrice" column="unit_price"/>
+        <result property="amount" column="amount"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <!-- ===== 批量插入出库明细 =====
+         <foreach> 遍历明细列表
+         collection = "items"：对应方法的参数名
+         item = "item"：遍历出的每个元素叫 item
+         separator = ","：每条明细之间用逗号分隔 -->
+    <insert id="batchInsert">
+        INSERT INTO stock_out_item (order_id, product_id, quantity, unit_price, amount)
+        VALUES
+        <foreach collection="items" item="item" separator=",">
+            (#{item.orderId}, #{item.productId}, #{item.quantity}, #{item.unitPrice}, #{item.amount})
+        </foreach>
+    </insert>
+</mapper>

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.wms_backend.mapper.StockLogMapper">
+
+    <insert id="insert" parameterType="com.example.wms_backend.entity.StockLog">
+        INSERT INTO stock_log (
+            product_id, warehouse_id, change_type, change_quantity,
+            before_quantity, after_quantity, order_no, operator_id
+        ) VALUES (
+                     #{log.productId}, #{log.warehouseId}, #{log.changeType},
+                     #{log.changeQuantity}, #{log.beforeQuantity}, #{log.afterQuantity},
+                     #{log.orderNo}, #{log.operatorId}
+                 )
+    </insert>
+
+    <!-- ===== 出入库日报趋势 =====
+         DATE(create_time)：只取时间的"日期部分"，把同一天的多条流水归为一组
+         GROUP BY 日期 + 类型：同一天的同类型合并成一行
+         这样就得到每天入库多少、出库多少 -->
+    <select id="trendDaily" resultType="com.example.wms_backend.vo.StockTrendVO">
+        SELECT
+        DATE(create_time) AS date,        -- 只取日期，如 2026-08-21
+        change_type       AS change_type, -- IN/OUT
+        SUM(change_quantity) AS total_qty -- 该日该类型数量求和
+        FROM stock_log
+        <where>
+            <!-- 开始日期有值才过滤 -->
+            <if test="startDate != null and startDate != ''">
+                AND create_time &gt;= #{startDate}
+            </if>
+            <!-- 结束日期有值才过滤 -->
+            <if test="endDate != null and endDate != ''">
+                AND create_time &lt;= CAST(CONCAT(#{endDate}, ' 23:59:59') AS DATETIME)
+            </if>
+        </where>
+        GROUP BY DATE(create_time), change_type
+        ORDER BY date ASC, change_type ASC   -- 按时间从早到晚
+    </select>
+</mapper>

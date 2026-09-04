@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.wms_backend.mapper.StockMapper">
+
+    <resultMap id="StockMap" type="com.example.wms_backend.entity.Stock">
+        <id property="id" column="id"/>
+        <result property="productId" column="product_id"/>
+        <result property="warehouseId" column="warehouse_id"/>
+        <result property="quantity" column="quantity"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="findByProductAndWarehouse" resultMap="StockMap">
+        SELECT * FROM stock
+        WHERE product_id = #{productId} AND warehouse_id = #{warehouseId}
+    </select>
+
+    <insert id="insert" parameterType="com.example.wms_backend.entity.Stock">
+        INSERT INTO stock (product_id, warehouse_id, quantity)
+        VALUES (#{stock.productId}, #{stock.warehouseId}, #{stock.quantity})
+    </insert>
+
+    <update id="increaseQuantity">
+        UPDATE stock SET quantity = quantity + #{quantity}
+        WHERE product_id = #{productId} AND warehouse_id = #{warehouseId}
+    </update>
+
+    <!-- 出库扣减库存 -->
+    <!-- 关键：WHERE 里加 quantity >= #{quantity}
+         如果当前库存 < 出库数量，条件不满足，影响行数 = 0
+         Service 层根据返回 0 判定"库存不足"，抛异常回滚 -->
+    <update id="decreaseQuantity">
+        UPDATE stock SET quantity = quantity - #{quantity}
+        WHERE product_id = #{productId}
+          AND warehouse_id = #{warehouseId}
+          AND quantity >= #{quantity}
+    </update>
+    <!-- ===== 按商品汇总 =====
+         resultType 直接写 VO 全类名，靠"别名自动映射"：
+         SQL 的列名取成下划线，MyBatis map-underscore-to-camel-case=true 会自动变驼峰
+
+         这条 SQL 同时干了两件事：
+         1. 把 stock 关联到 product（拿商品名和编码）
+         2. 用 GROUP BY 按商品分组，SUM 把同一个商品的多仓库数量加起来 -->
+    <select id="summaryByProduct" resultType="com.example.wms_backend.vo.StockSummaryVO">
+        SELECT
+        p.id            AS product_id,        -- 商品ID
+        p.name          AS product_name,      -- 商品名
+        p.code          AS product_code,      -- 商品编码
+        SUM(s.quantity) AS total_qty,         -- SUM=求和：这个商品在【所有仓库】的库存加起来
+        COUNT(s.warehouse_id) AS warehouse_count,  -- COUNT(列)=数非NULL：这个商品占了几个仓库
+        -- >= 不涉及任何转义，语义等价且更省事。
+        CASE WHEN p.warning_qty >= SUM(s.quantity) THEN 1 ELSE 0 END AS warn_flag
+        FROM stock s
+        INNER JOIN product p ON s.product_id = p.id
+        -- 关键分组：GROUP BY 后面写的列 = "按什么归成一类"
+        GROUP BY p.id, p.name, p.code, p.warning_qty
+        ORDER BY total_qty DESC      -- 库存多的排前面
+    </select>
+
+    <!-- 按仓库维度汇总：每个仓库一行，看这个仓库共存了多少货 -->
+    <!-- 与 summaryByProduct 同理，只是 GROUP BY 换成仓库 -->
+    <select id="summaryByWarehouse" resultType="com.example.wms_backend.vo.StockSummaryVO">
+        SELECT
+            w.id   AS product_id,        -- 这里复用 VO 的 productId 字段装仓库ID（见后文说明）
+            w.name AS product_name,      -- 复用 productName 装仓库名
+            SUM(s.quantity) AS total_qty,       -- 该仓库所有商品库存总和
+            COUNT(s.product_id) AS warehouse_count, -- 这个仓库里有多少种商品
+            0 AS warn_flag               -- 仓库维度暂不做预警，固定0
+        FROM stock s
+                 INNER JOIN warehouse w ON s.warehouse_id = w.id
+        GROUP BY w.id, w.name
+        ORDER BY total_qty DESC
+    </select>
+
+    <!-- ===== 分页查询库存（主逻辑） =====
+     主表 stock 左连接 product 和 warehouse，取名称与预警线
+     WHERE 用 <if> 动态拼关键字/仓库过滤
+     分页用 LIMIT ：MySQL 的 offset 从 0 开始 -->
+    <select id="searchPage" resultType="com.example.wms_backend.vo.StockInfoVO">
+        SELECT
+        s.id,
+        p.name  AS product_name,
+        p.code  AS product_code,
+        w.name  AS warehouse_name,
+        s.quantity,
+        p.warning_qty,
+        CASE WHEN s.quantity &lt;= p.warning_qty THEN 1 ELSE 0 END AS warn_flag
+        FROM stock s
+        LEFT JOIN product  p ON s.product_id   = p.id
+        LEFT JOIN warehouse w ON s.warehouse_id = w.id
+        <where>
+            <if test="dto.keyword != null and dto.keyword != ''">
+                AND (p.name LIKE CONCAT('%', #{dto.keyword}, '%')
+                OR p.code LIKE CONCAT('%', #{dto.keyword}, '%'))
+            </if>
+            <if test="dto.warehouseId != null">
+                AND s.warehouse_id = #{dto.warehouseId}
+            </if>
+        </where>
+        ORDER BY s.update_time DESC
+        LIMIT #{offset}, #{dto.pageSize}
+    </select>
+
+    <!-- ===== 统计总条数：条件和分页查询完全一致，只把 SELECT 换成 COUNT =====
+     注意：MyBatis 有个细节，Javax <where> 在这个独立语句里也要 <if> 保持一致 -->
+    <select id="countSearch" resultType="long">
+        SELECT COUNT(*)
+        FROM stock s
+        LEFT JOIN product p ON s.product_id = p.id
+        <where>
+            <if test="dto.keyword != null and dto.keyword != ''">
+                AND (p.name LIKE CONCAT('%', #{dto.keyword}, '%')
+                OR p.code LIKE CONCAT('%', #{dto.keyword}, '%'))
+            </if>
+            <if test="dto.warehouseId != null">
+                AND s.warehouse_id = #{dto.warehouseId}
+            </if>
+        </where>
+    </select>
+</mapper>

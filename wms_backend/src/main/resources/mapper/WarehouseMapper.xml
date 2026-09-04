@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- ===== 第2-3行：DOCTYPE 声明 ===== -->
+<!-- 这是 MyBatis 的固定写法，不能改 -->
+<!-- 告诉 XML 解析器这个文件遵循 MyBatis 的 DTD 规范 -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- ===== 第4行：mapper 根标签 ===== -->
+<!-- namespace = 对应的 Mapper 接口的全类名 -->
+<!-- 这行非常重要！告诉 MyBatis：这个 XML 文件和哪个接口是一对的 -->
+<!-- 必须和 WarehouseMapper.java 的完整路径一致 -->
+<mapper namespace="com.example.wms_backend.mapper.WarehouseMapper">
+
+    <!-- ===== 第5-15行：resultMap（结果映射）===== -->
+    <!-- resultMap 定义"数据库字段"如何映射成"Java 属性" -->
+    <!-- id = 这个映射的名字，后面 SQL 里要引用 -->
+    <!-- type = 对应的实体类 -->
+    <resultMap id="WarehouseMap" type="com.example.wms_backend.entity.Warehouse">
+        <!-- <id> 标签：主键字段（只有一个） -->
+        <!-- property = Java 属性名，column = 数据库字段名 -->
+        <id property="id" column="id"/>
+
+        <!-- <result> 标签：普通字段（可以有多个） -->
+        <!-- property = Java 属性名，column = 数据库字段名 -->
+        <result property="name" column="name"/>
+        <result property="code" column="code"/>
+        <result property="address" column="address"/>
+        <!-- managerId 对应数据库的 manager_id -->
+        <!-- 因为配置了驼峰转换，也可以不写这行 -->
+        <result property="managerId" column="manager_id"/>
+        <result property="status" column="status"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <!-- ===== 第17-18行：公共字段列表 ===== -->
+    <!-- 把常用的字段列表抽出来，用 <include> 重复引用 -->
+    <!-- 好处：修改字段时只改一处 -->
+    <sql id="Base_Column_List">
+        id, name, code, address, manager_id, status, create_time, update_time
+    </sql>
+
+    <!-- ===== 第20-26行：根据ID查询仓库 ===== -->
+    <!-- select 标签：查询语句 -->
+    <!-- id = 接口方法名（必须和 WarehouseMapper.findById 一致） -->
+    <!-- resultMap = 用上面定义的映射 -->
+    <!-- parameterType = 参数类型（Long） -->
+    <select id="findById" resultMap="WarehouseMap" parameterType="long">
+        <!-- SELECT 后面用 <include> 引用公共字段列表 -->
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM warehouse
+        WHERE id = #{id}
+    </select>
+
+    <!-- ===== 第28-33行：根据编码查询仓库 ===== -->
+    <select id="findByCode" resultMap="WarehouseMap" parameterType="string">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM warehouse
+        WHERE code = #{code}
+    </select>
+
+    <!-- ===== 第35-39行：查询所有仓库 ===== -->
+    <select id="findAll" resultMap="WarehouseMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM warehouse
+        WHERE status = 1
+    </select>
+
+    <!-- ===== 第41-53行：条件查询仓库（分页）===== -->
+    <!-- 这个查询支持动态条件：name 可以为空，status 可以为空 -->
+    <!-- 使用 <where> 标签自动处理 WHERE 子句 -->
+    <!-- 使用 <if> 标签判断条件是否成立 -->
+    <select id="findByCondition" resultMap="WarehouseMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM warehouse
+        <where>
+            <!-- name 条件：如果前端传了 name，就加这个条件 -->
+            <!-- CONCAT('%', #{name}, '%') 实现模糊查询 -->
+            <if test="name != null and name != ''">
+                AND name LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <!-- status 条件：如果前端传了 status，就加这个条件 -->
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+        <!-- 排序：按创建时间倒序 -->
+        ORDER BY create_time DESC
+        <!-- 分页：MySQL 的分页语法 -->
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- ===== 第55-65行：统计符合条件的仓库数量 ===== -->
+    <!-- 和上面的查询条件一样，但返回 COUNT(*) 而不是列表 -->
+    <select id="countByCondition" resultType="long">
+        SELECT COUNT(*)
+        FROM warehouse
+        <where>
+            <if test="name != null and name != ''">
+                AND name LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <!-- ===== 第67-79行：新增仓库 ===== -->
+    <!-- insert 标签：插入语句 -->
+    <!-- parameterType = 参数类型（Warehouse 对象） -->
+    <!-- useGeneratedKeys="true"：返回自增主键 -->
+    <!-- keyProperty="id"：把自增值返回到 Warehouse.id 属性 -->
+    <insert id="insert" parameterType="com.example.wms_backend.entity.Warehouse" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO warehouse
+        (name, code, address, manager_id, status, create_time, update_time)
+        VALUES
+        (#{warehouse.name}, #{warehouse.code}, #{warehouse.address},
+        #{warehouse.managerId}, #{warehouse.status},
+        NOW(), NOW())
+        <!-- SELECT KEY_INSERT_ID()：获取刚才插入的主键ID -->
+        <selectKey resultType="long" keyProperty="id" order="AFTER">
+            SELECT LAST_INSERT_ID()
+        </selectKey>
+    </insert>
+
+    <!-- ===== 第81-91行：修改仓库 ===== -->
+    <!-- update 标签：更新语句 -->
+    <!-- 使用 <set> 标签自动处理 SET 子句和逗号 -->
+    <!-- 使用 <if> 标签实现动态更新（只更新有变化的字段） -->
+    <update id="update" parameterType="com.example.wms_backend.entity.Warehouse">
+        UPDATE warehouse
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="code != null">code = #{code},</if>
+            <if test="address != null">address = #{address},</if>
+            <if test="managerId != null">manager_id = #{managerId},</if>
+            <if test="status != null">status = #{status},</if>
+            <!-- 不管有没有变化，都更新时间 -->
+            update_time = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- ===== 第93-98行：删除仓库 ===== -->
+    <!-- delete 标签：删除语句 -->
+    <delete id="deleteById" parameterType="long">
+        DELETE FROM warehouse
+        WHERE id = #{id}
+    </delete>
+
+    <!-- ===== mapper 根标签的结束括号 ===== -->
+</mapper>

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- ===== namespace：必须和接口全类名一致 =====
+mybatis 通过这个把接口和 XML 绑定
+com.example.wms_backend.mapper.StockInOrderMapper → 对应 StockInOrderMapper.java 接口
+-->
+<mapper namespace="com.example.wms_backend.mapper.StockInOrderMapper">
+
+    <!-- ===== 结果映射 =====
+         把数据库字段映射成 Java 属性
+         id 是主键，result 是普通字段
+         property = Java 属性名，column = 数据库字段名
+    -->
+    <resultMap id="StockInOrderMap" type="com.example.wms_backend.entity.StockInOrder">
+        <id property="id" column="id"/>
+        <result property="orderNo" column="order_no"/>
+        <result property="warehouseId" column="warehouse_id"/>
+        <result property="supplier" column="supplier"/>
+        <result property="operatorId" column="operator_id"/>
+        <result property="totalAmount" column="total_amount"/>
+        <result property="status" column="status"/>
+        <result property="remark" column="remark"/>
+        <result property="auditTime" column="audit_time"/>
+        <result property="auditorId" column="auditor_id"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <!-- ===== 公共字段 =====
+         抽出来重复使用，不用每次都写一遍
+         include 语法就可以复用
+    -->
+    <sql id="Base_Column_List">
+        id, order_no, warehouse_id, supplier, operator_id, total_amount, status, remark,
+        audit_time, auditor_id, create_time, update_time
+    </sql>
+
+    <!-- ===== 插入 ===== -->
+    <insert id="insert" parameterType="com.example.wms_backend.entity.StockInOrder"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO stock_in_order (
+            order_no, warehouse_id, supplier, operator_id, total_amount, status, remark,
+            audit_time, auditor_id
+        ) VALUES (
+                     #{order.orderNo}, #{order.warehouseId}, #{order.supplier}, #{order.operatorId},
+                     #{order.totalAmount}, #{order.status}, #{order.remark},
+                     #{order.auditTime}, #{order.auditorId}
+                 )
+    </insert>
+
+    <select id="getMaxOrderNoByDate" resultType="string" parameterType="string">
+        SELECT order_no FROM stock_in_order
+        WHERE order_no LIKE CONCAT(#{prefix}, '%')
+        ORDER BY order_no DESC
+            LIMIT 1
+    </select>
+
+    <!-- ===== 根据ID查询 ===== -->
+    <select id="findById" resultMap="StockInOrderMap" parameterType="long">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM stock_in_order
+        WHERE id = #{id}
+    </select>
+</mapper>
