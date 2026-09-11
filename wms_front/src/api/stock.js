@@ -25,6 +25,11 @@ export function getStockTrend(params) {
   return request.get('/stock/trend', { params })
 }
 
+// ===== s3-6 库存流水分页查询 =====
+export function getStockLogPage(params) {
+  return request.get('/stock/log/page', { params })
+}
+
 // ===== s2-2 审核流：出入库单列表 + 审核操作 =====
 
 // 入库单分页

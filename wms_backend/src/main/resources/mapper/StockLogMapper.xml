@@ -37,4 +37,69 @@
         GROUP BY DATE(create_time), change_type
         ORDER BY date ASC, change_type ASC   -- 按时间从早到晚
     </select>
+
+    <!-- ===== s3-6 库存流水分页查询 =====
+         主表 stock_log 联 product/warehouse/sys_user 补名称
+         WHERE 用 <if> 按需拼 商品/仓库/类型/日期范围
+         分页 LIMIT offset, pageSize -->
+    <select id="searchPage" resultType="com.example.wms_backend.vo.StockLogVO">
+        SELECT
+        sl.id,
+        p.name   AS product_name,
+        p.code   AS product_code,
+        w.name   AS warehouse_name,
+        sl.change_type,
+        sl.change_quantity,
+        sl.before_quantity,
+        sl.after_quantity,
+        sl.order_no,
+        u.real_name AS operator_name,
+        sl.create_time
+        FROM stock_log sl
+        INNER JOIN product p   ON sl.product_id    = p.id
+        INNER JOIN warehouse w ON sl.warehouse_id  = w.id
+        LEFT JOIN sys_user u   ON sl.operator_id   = u.id
+        <where>
+            <if test="dto.productId != null">
+                AND sl.product_id = #{dto.productId}
+            </if>
+            <if test="dto.warehouseId != null">
+                AND sl.warehouse_id = #{dto.warehouseId}
+            </if>
+            <if test="dto.changeType != null and dto.changeType != ''">
+                AND sl.change_type = #{dto.changeType}
+            </if>
+            <if test="dto.startDate != null and dto.startDate != ''">
+                AND sl.create_time &gt;= #{dto.startDate}
+            </if>
+            <if test="dto.endDate != null and dto.endDate != ''">
+                AND sl.create_time &lt;= CAST(CONCAT(#{dto.endDate}, ' 23:59:59') AS DATETIME)
+            </if>
+        </where>
+        ORDER BY sl.create_time DESC, sl.id DESC   -- 最新变动在前
+        LIMIT #{offset}, #{dto.pageSize}
+    </select>
+
+    <!-- 流水总条数（分页用，条件与 searchPage 一致） -->
+    <select id="countSearch" resultType="long">
+        SELECT COUNT(*)
+        FROM stock_log sl
+        <where>
+            <if test="dto.productId != null">
+                AND sl.product_id = #{dto.productId}
+            </if>
+            <if test="dto.warehouseId != null">
+                AND sl.warehouse_id = #{dto.warehouseId}
+            </if>
+            <if test="dto.changeType != null and dto.changeType != ''">
+                AND sl.change_type = #{dto.changeType}
+            </if>
+            <if test="dto.startDate != null and dto.startDate != ''">
+                AND sl.create_time &gt;= #{dto.startDate}
+            </if>
+            <if test="dto.endDate != null and dto.endDate != ''">
+                AND sl.create_time &lt;= CAST(CONCAT(#{dto.endDate}, ' 23:59:59') AS DATETIME)
+            </if>
+        </where>
+    </select>
 </mapper>

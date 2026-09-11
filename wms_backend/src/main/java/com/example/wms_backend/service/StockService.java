@@ -1,5 +1,6 @@
 package com.example.wms_backend.service;
 
+import com.example.wms_backend.dto.StockLogQueryDTO;
 import com.example.wms_backend.dto.StockQueryDTO;
 import com.example.wms_backend.vo.StockInfoVO;
 import com.example.wms_backend.vo.StockSummaryVO;
@@ -23,4 +24,7 @@ public interface StockService {
 
     // 出入库日报趋势（按天统计出入库数量）
     List<StockTrendVO> queryTrend(String startDate, String endDate);
+
+    // ===== s3-6 库存流水分页查询，返回 {list, total, pageNum, pageSize}
+    Map<String, Object> queryLogPage(StockLogQueryDTO dto);
 }

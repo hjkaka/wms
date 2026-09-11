@@ -90,14 +90,86 @@
           </el-table>
         </el-card>
       </el-tab-pane>
+
+      <!-- ===== 库存流水（s3-6） ===== -->
+      <el-tab-pane label="库存流水" name="log">
+        <el-card class="mb">
+          <el-form inline>
+            <el-form-item label="商品">
+              <el-select v-model="logQuery.productId" placeholder="全部" clearable style="width: 180px" :loading="prdLoading" @visible-change="loadProducts">
+                <el-option v-for="p in products" :key="p.id" :label="p.name" :value="p.id" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="仓库">
+              <el-select v-model="logQuery.warehouseId" placeholder="全部" clearable style="width: 160px" :loading="whLoading" @visible-change="loadWarehouses">
+                <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="类型">
+              <el-select v-model="logQuery.changeType" placeholder="全部" clearable style="width: 120px">
+                <el-option label="入库" value="IN" />
+                <el-option label="出库" value="OUT" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="日期">
+              <el-date-picker
+                v-model="logRange"
+                type="daterange"
+                range-separator="至"
+                start-placeholder="开始日期"
+                end-placeholder="结束日期"
+                value-format="YYYY-MM-DD"
+                style="width: 240px"
+              />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="searchLog">查询</el-button>
+            </el-form-item>
+          </el-form>
+        </el-card>
+        <el-card>
+          <el-table :data="logList" border stripe v-loading="logLoading">
+            <el-table-column prop="createTime" label="时间" width="180" />
+            <el-table-column prop="productCode" label="编码" width="130" />
+            <el-table-column prop="productName" label="商品名称" />
+            <el-table-column prop="warehouseName" label="仓库" />
+            <el-table-column label="类型" width="90">
+              <template #default="{ row }">
+                <el-tag :type="row.changeType === 'IN' ? 'success' : 'danger'">{{ row.changeType === 'IN' ? '入库' : '出库' }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="变动数量" width="110">
+              <template #default="{ row }">
+                <span :class="row.changeType === 'IN' ? 'in-qty' : 'out-qty'">
+                  {{ row.changeType === 'IN' ? '+' : '-' }}{{ row.changeQuantity }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="beforeQuantity" label="变动前" width="80" />
+            <el-table-column prop="afterQuantity" label="变动后" width="80" />
+            <el-table-column prop="orderNo" label="单据号" width="180" />
+            <el-table-column prop="operatorName" label="操作人" width="100" />
+          </el-table>
+          <el-pagination
+            class="pager"
+            background
+            layout="total, prev, pager, next"
+            :total="logTotal"
+            :current-page="logQuery.pageNum"
+            :page-size="logQuery.pageSize"
+            @current-change="onLogPageChange"
+          />
+        </el-card>
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { getStockPage, getStockSummary, getStockTrend } from '../api/stock'
+import { getStockPage, getStockSummary, getStockTrend, getStockLogPage } from '../api/stock'
 import { getAllWarehouses } from '../api/warehouse'
+import { getAllProducts } from '../api/product'
 
 const activeTab = ref('page')
 
@@ -116,6 +188,15 @@ const trendList = ref([])
 const trendLoading = ref(false)
 const trend = reactive({ startDate: '', endDate: '' })
 
+// ===== 流水（s3-6） =====
+const logList = ref([])
+const logTotal = ref(0)
+const logLoading = ref(false)
+const logRange = ref(null)
+const logQuery = reactive({ productId: null, warehouseId: null, changeType: null, startDate: '', endDate: '', pageNum: 1, pageSize: 10 })
+const products = ref([])
+const prdLoading = ref(false)
+
 // 仓库下拉
 const warehouses = ref([])
 const whLoading = ref(false)
@@ -126,6 +207,17 @@ async function loadWarehouses(visible) {
     warehouses.value = await getAllWarehouses()
   } finally {
     whLoading.value = false
+  }
+}
+
+// 商品下拉
+async function loadProducts(visible) {
+  if (!visible || products.value.length) return
+  prdLoading.value = true
+  try {
+    products.value = await getAllProducts()
+  } finally {
+    prdLoading.value = false
   }
 }
 
@@ -161,6 +253,7 @@ import { watch } from 'vue'
 watch(activeTab, (val) => {
   if (val === 'summary' && !summaryList.value.length) loadSummary()
   if (val === 'trend' && !trendList.value.length) loadTrend()
+  if (val === 'log' && !logList.value.length) loadLog()
 })
 
 async function loadSummary() {
@@ -183,9 +276,43 @@ async function loadTrend() {
     trendLoading.value = false
   }
 }
+
+// ===== 流水（s3-6） =====
+async function loadLog() {
+  logLoading.value = true
+  try {
+    // 日期范围组 ['开始','结束'] → 拆成两个参数字段
+    const [startDate, endDate] = logRange.value || []
+    const data = await getStockLogPage({
+      productId: logQuery.productId,
+      warehouseId: logQuery.warehouseId,
+      changeType: logQuery.changeType || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      pageNum: logQuery.pageNum,
+      pageSize: logQuery.pageSize
+    })
+    logList.value = data.list
+    logTotal.value = data.total
+  } finally {
+    logLoading.value = false
+  }
+}
+
+function searchLog() {
+  logQuery.pageNum = 1
+  loadLog()
+}
+
+function onLogPageChange(page) {
+  logQuery.pageNum = page
+  loadLog()
+}
 </script>
 
 <style scoped>
 .mb { margin-bottom: 16px; }
 .pager { margin-top: 16px; justify-content: flex-end; }
+.in-qty { color: #67c23a; font-weight: 600; }
+.out-qty { color: #f56c6c; font-weight: 600; }
 </style>

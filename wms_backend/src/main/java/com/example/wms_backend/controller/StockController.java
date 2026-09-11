@@ -1,6 +1,7 @@
 package com.example.wms_backend.controller;
 
 import com.example.wms_backend.common.Result;
+import com.example.wms_backend.dto.StockLogQueryDTO;
 import com.example.wms_backend.dto.StockQueryDTO;
 import com.example.wms_backend.service.StockService;
 import com.example.wms_backend.vo.StockInfoVO;
@@ -35,5 +36,12 @@ public class StockController {
     public Result<List<StockTrendVO>> trend(@RequestParam(required = false) String startDate,
                                             @RequestParam(required = false) String endDate) {
         return Result.success(stockService.queryTrend(startDate, endDate));
+    }
+
+    // GET /api/stock/log/page?productId=&warehouseId=&changeType=&startDate=&endDate=&pageNum=&pageSize=
+    // → 库存流水分页（s3-6）
+    @GetMapping("/log/page")
+    public Result<Map<String, Object>> logPage(StockLogQueryDTO dto) {
+        return Result.success(stockService.queryLogPage(dto));
     }
 }

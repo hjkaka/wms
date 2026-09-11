@@ -1,10 +1,12 @@
 package com.example.wms_backend.service.impl;
 
+import com.example.wms_backend.dto.StockLogQueryDTO;
 import com.example.wms_backend.dto.StockQueryDTO;
 import com.example.wms_backend.mapper.StockLogMapper;
 import com.example.wms_backend.mapper.StockMapper;
 import com.example.wms_backend.service.StockService;
 import com.example.wms_backend.vo.StockInfoVO;
+import com.example.wms_backend.vo.StockLogVO;
 import com.example.wms_backend.vo.StockSummaryVO;
 import com.example.wms_backend.vo.StockTrendVO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,5 +56,19 @@ public class StockServiceImpl implements StockService {
     public List<StockTrendVO> queryTrend(String startDate, String endDate) {
         // 直接把入参转发给 Mapper，聚合逻辑全在 SQL
         return stockLogMapper.trendDaily(startDate, endDate);
+    }
+
+    @Override
+    public Map<String, Object> queryLogPage(StockLogQueryDTO dto) {
+        // 和商品/库存分页同套路：换算偏移量 → 查当前页 → 查总条数 → 组装
+        int offset = (dto.getPageNum() - 1) * dto.getPageSize();
+        List<StockLogVO> list = stockLogMapper.searchPage(dto, offset);
+        long total = stockLogMapper.countSearch(dto);
+        Map<String, Object> result = new HashMap<>();
+        result.put("list", list);
+        result.put("total", total);
+        result.put("pageNum", dto.getPageNum());
+        result.put("pageSize", dto.getPageSize());
+        return result;
     }
 }
