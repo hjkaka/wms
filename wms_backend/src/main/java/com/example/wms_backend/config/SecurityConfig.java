@@ -4,6 +4,7 @@ import com.example.wms_backend.security.JwtFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -14,6 +15,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration       // 告诉 Spring：这是一个配置类，里面的内容是项目配置
 @EnableWebSecurity   // 开启 Spring Security 功能
+@EnableGlobalMethodSecurity(prePostEnabled = true) // 开启方法级 @PreAuthorize 权限控制
 public class SecurityConfig {
 
 
@@ -47,9 +49,9 @@ public class SecurityConfig {
 
             // 第3步：配置 URL 的权限规则
             .authorizeRequests()
-                // /api/hello 所有人都能访问（不需要登录）
-                .antMatchers("/api/hello","/api/auth/login","/api/product/**","/api/stockin/**","/api/stockout/**","/api/stock/**").permitAll()
-                // 其他所有接口都需要登录才能访问
+                // 仅登录接口和测试接口所有人可访问，其余业务接口都必须登录认证
+                .antMatchers("/api/hello","/api/auth/login").permitAll()
+                // 其他所有接口都需要登录才能访问（具体角色细权由方法级 @PreAuthorize 控制）
                 .anyRequest().authenticated()
             // ====== 添加 JWT 过滤器 ======
             // 在 UsernamePasswordAuthenticationFilter 之前执行

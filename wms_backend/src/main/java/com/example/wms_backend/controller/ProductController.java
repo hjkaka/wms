@@ -6,6 +6,7 @@ import com.example.wms_backend.dto.ProductQueryDTO;
 import com.example.wms_backend.entity.Product;
 import com.example.wms_backend.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -20,8 +21,9 @@ public class ProductController {
 
 
     // 新增商品
-
+    // 只有 管理员/仓库主管 能维护主数据（STAFF 只读+出入库）
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public Result<Product> creatProduct(@RequestBody Product product){
         Product created = productService.createProduct(product);
         return Result.success(created);
@@ -29,6 +31,7 @@ public class ProductController {
 
     //修改商品
     @PostMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public Result<Product> updataProduct(@PathVariable Long id, @RequestBody Product product){
         Product updated = productService.updateProduct(id, product);
         return Result.success(updated);
@@ -36,6 +39,7 @@ public class ProductController {
 
     //删除商品
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public Result<Void> deleteProduct(@PathVariable Long id){
         productService.deleteProduct(id);
         return Result.success();

@@ -5,6 +5,7 @@ import com.example.wms_backend.dto.WarehouseQueryDTO;
 import com.example.wms_backend.entity.Warehouse;
 import com.example.wms_backend.service.WarehouseService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
@@ -18,8 +19,9 @@ public class WarehouseController {
     private WarehouseService warehouseService;
 
     // ===== 新增仓库 =====
-    // POST /api/warehouse
+    // POST /api/warehouse（主数据维护，仅 ADMIN/MANAGER）
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public Result<Warehouse> createWarehouse(@RequestBody Warehouse warehouse) {
         Warehouse created = warehouseService.createWarehouse(warehouse);
         return Result.success(created);
@@ -29,6 +31,7 @@ public class WarehouseController {
     // PUT /api/warehouse/{id}
     // 注意：这里用 @PutMapping，不是 @PostMapping
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public Result<Warehouse> updateWarehouse(
             @PathVariable Long id,
             @RequestBody Warehouse warehouse) {
@@ -39,6 +42,7 @@ public class WarehouseController {
     // ===== 删除仓库 =====
     // DELETE /api/warehouse/{id}
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public Result<Void> deleteWarehouse(@PathVariable Long id) {
         warehouseService.deleteWarehouse(id);
         return Result.success();

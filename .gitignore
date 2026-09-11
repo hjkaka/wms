@@ -35,3 +35,10 @@ Thumbs.db
 .env
 .env.local
 *.local.properties
+
+# ===== 测试 / 校验脚本（不入仓，仅本地验证）=====
+wms_backend/src/main/resources/db/test_*.py
+wms_backend/src/main/resources/db/check_plaintext_password.py
+
+# ===== 文档 / 执行计划（不入仓）=====
+上线执行计划.md
