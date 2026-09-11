@@ -50,4 +50,72 @@
         WHERE id = #{id}
     </select>
 
+    <!-- ====== 条件分页查询用户 ====== -->
+    <select id="findByCondition" resultMap="SysUserMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM sys_user
+        <where>
+            <if test="username != null and username != ''">
+                AND username LIKE CONCAT('%', #{username}, '%')
+            </if>
+            <if test="role != null and role != ''">
+                AND role = #{role}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY id ASC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- ====== 统计符合条件的用户数量 ====== -->
+    <select id="countByCondition" resultType="long">
+        SELECT COUNT(*)
+        FROM sys_user
+        <where>
+            <if test="username != null and username != ''">
+                AND username LIKE CONCAT('%', #{username}, '%')
+            </if>
+            <if test="role != null and role != ''">
+                AND role = #{role}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <!-- ====== 新增用户 ====== -->
+    <!-- useGeneratedKeys + keyProperty="id"：把自增主键写回 user.id（注意 password 必须先 BCrypt） -->
+    <insert id="insert" parameterType="com.example.wms_backend.entity.SysUser"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_user (username, password, real_name, phone, role, status, create_time, update_time)
+        VALUES (#{user.username}, #{user.password}, #{user.realName},
+                #{user.phone}, #{user.role}, #{user.status},
+                NOW(), NOW())
+    </insert>
+
+    <!-- ====== 修改用户基本信息 ====== -->
+    <!-- 密码为空串/未传则不更新；其余字段按需动态更新 -->
+    <update id="update" parameterType="com.example.wms_backend.entity.SysUser">
+        UPDATE sys_user
+        <set>
+            <if test="user.realName != null">real_name = #{user.realName},</if>
+            <if test="user.phone != null">phone = #{user.phone},</if>
+            <if test="user.role != null and user.role != ''">role = #{user.role},</if>
+            <if test="user.password != null and user.password != ''">password = #{user.password},</if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{user.id}
+    </update>
+
+    <!-- ====== 修改用户状态（启用/停用）====== -->
+    <update id="updateStatus">
+        UPDATE sys_user
+        SET status = #{status}, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
 </mapper>
