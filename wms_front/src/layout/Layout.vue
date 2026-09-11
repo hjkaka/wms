@@ -34,6 +34,10 @@
           <el-icon><DataLine /></el-icon>
           <span>库存查询</span>
         </el-menu-item>
+        <el-menu-item index="/report">
+          <el-icon><PieChart /></el-icon>
+          <span>决策报表</span>
+        </el-menu-item>
         <el-menu-item v-if="userStore.userInfo.role === 'ADMIN'" index="/user">
           <el-icon><UserFilled /></el-icon>
           <span>用户管理</span>

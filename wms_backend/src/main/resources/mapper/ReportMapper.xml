@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.wms_backend.mapper.ReportMapper">
+
+    <!-- ===== 期间出入库聚合（s3-5） =====
+         以【上架商品】为主表，LEFT JOIN 一个按商品分组的期间出入库子查询
+         这样即使某商品期间没有流水也会出现一行，数量为0
+         金额不在此算：金额 = out_quantity × price，在 Java 侧计算（避免子查询里带价格逻辑） -->
+    <select id="periodAgg" resultType="com.example.wms_backend.vo.PeriodAggVO">
+        SELECT
+            p.id           AS product_id,
+            p.name         AS product_name,
+            p.code         AS product_code,
+            p.price        AS price,
+            p.create_time  AS create_time,
+            IFNULL(x.out_qty, 0) AS out_quantity,
+            IFNULL(x.in_qty, 0)  AS in_quantity
+        FROM product p
+        LEFT JOIN (
+            SELECT
+                product_id,
+                SUM(IF(change_type = 'OUT', change_quantity, 0)) AS out_qty,
+                SUM(IF(change_type = 'IN',  change_quantity, 0)) AS in_qty
+            FROM stock_log
+            <where>
+                <if test="startDate != null and startDate != ''">
+                    AND create_time &gt;= #{startDate}
+                </if>
+                <if test="endDate != null and endDate != ''">
+                    AND create_time &lt;= CAST(CONCAT(#{endDate}, ' 23:59:59') AS DATETIME)
+                </if>
+            </where>
+            GROUP BY product_id
+        ) x ON x.product_id = p.id
+        WHERE p.status = 1
+        ORDER BY p.id
+    </select>
+
+    <!-- 当前各商品库存数量（期末库存），任意仓库维度相加 -->
+    <select id="currentStockQuantity" resultType="map">
+        SELECT product_id, SUM(quantity) AS quantity
+        FROM stock
+        GROUP BY product_id
+    </select>
+
+    <!-- 各商品最后一次出库时间（用于呆滞天数） -->
+    <select id="lastOutDate" resultType="map">
+        SELECT product_id, MAX(create_time) AS last_out
+        FROM stock_log
+        WHERE change_type = 'OUT'
+        GROUP BY product_id
+    </select>
+
+</mapper>
