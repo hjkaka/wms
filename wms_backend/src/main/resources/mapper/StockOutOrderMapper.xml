@@ -15,6 +15,7 @@
         <result property="totalAmount" column="total_amount"/>
         <result property="status" column="status"/>
         <result property="remark" column="remark"/>
+        <result property="reverseOfNo" column="reverse_of_no"/>
         <result property="auditTime" column="audit_time"/>
         <result property="auditorId" column="auditor_id"/>
         <result property="createTime" column="create_time"/>
@@ -25,7 +26,7 @@
          重复使用的列名抽出来，用 <include> 复用 -->
     <sql id="Base_Column_List">
         id, order_no, warehouse_id, receiver, operator_id, total_amount, status, remark,
-        audit_time, auditor_id, create_time, update_time
+        reverse_of_no, audit_time, auditor_id, create_time, update_time
     </sql>
 
     <!-- ===== 插入出库单 =====
@@ -35,11 +36,11 @@
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO stock_out_order (
             order_no, warehouse_id, receiver, operator_id, total_amount, status, remark,
-            audit_time, auditor_id
+            reverse_of_no, audit_time, auditor_id
         ) VALUES (
             #{order.orderNo}, #{order.warehouseId}, #{order.receiver}, #{order.operatorId},
             #{order.totalAmount}, #{order.status}, #{order.remark},
-            #{order.auditTime}, #{order.auditorId}
+            #{order.reverseOfNo}, #{order.auditTime}, #{order.auditorId}
         )
     </insert>
 
@@ -48,6 +49,7 @@
     <select id="getMaxOrderNoByDate" resultType="string" parameterType="string">
         SELECT order_no FROM stock_out_order
         WHERE order_no LIKE CONCAT(#{prefix}, '%')
+          AND reverse_of_no IS NULL
         ORDER BY order_no DESC
             LIMIT 1
     </select>
@@ -81,7 +83,7 @@
         SELECT o.id, o.order_no AS orderNo, o.warehouse_id AS warehouseId,
                w.name AS warehouseName, o.receiver, o.operator_id AS operatorId,
                u.real_name AS operatorName, o.total_amount AS totalAmount, o.status,
-               o.remark, o.audit_time AS auditTime, o.auditor_id AS auditorId,
+               o.remark, o.reverse_of_no AS reverseOfNo, o.audit_time AS auditTime, o.auditor_id AS auditorId,
                o.create_time AS createTime, o.update_time AS updateTime
         FROM stock_out_order o
         LEFT JOIN warehouse w ON o.warehouse_id = w.id

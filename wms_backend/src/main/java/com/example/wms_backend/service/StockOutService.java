@@ -46,6 +46,13 @@ public interface StockOutService {
     StockOutOrder post(Long id);
 
     /**
+     * 红冲（s2-3）：已过账(3) → 已红冲(4)，整单全额冲销。
+     * 出库红冲=回滚加回库存；写 OUT_REVERSE 反向流水；生成独立红冲单(原单号+"R")。
+     * 仅 ADMIN/MANAGER，必须填红冲原因。
+     */
+    StockOutOrder reverse(Long id, String remark);
+
+    /**
      * 分页查询出库单（审核流列表用）
      */
     Map<String, Object> getPage(StockOutPageDTO dto);

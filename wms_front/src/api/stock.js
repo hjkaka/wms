@@ -56,6 +56,10 @@ export function rejectStockIn(id) {
 export function postStockIn(id) {
   return request.post(`/stockin/${id}/post`)
 }
+// 红冲（撤销/冲销）：已过账→已红冲，回滚库存，需填原因（MANAGER/ADMIN）s2-3
+export function reverseStockIn(id, remark) {
+  return request.post(`/stockin/${id}/reverse`, null, { params: { remark } })
+}
 
 // 出库单分页
 export function getStockOutPage(params) {
@@ -80,4 +84,8 @@ export function rejectStockOut(id) {
 // 过账（真正动库存）
 export function postStockOut(id) {
   return request.post(`/stockout/${id}/post`)
+}
+// 红冲（撤销/冲销）：已过账→已红冲，回滚库存，需填原因（MANAGER/ADMIN）s2-3
+export function reverseStockOut(id, remark) {
+  return request.post(`/stockout/${id}/reverse`, null, { params: { remark } })
 }

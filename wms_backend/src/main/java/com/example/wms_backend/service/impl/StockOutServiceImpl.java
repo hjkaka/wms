@@ -292,6 +292,72 @@ public class StockOutServiceImpl implements StockOutService {
     }
 
     @Override
+    public StockOutOrder reverse(Long id, String remark) {
+        // ===== 1. 校验单据：必须已过账 =====
+        StockOutOrder order = stockOutOrderMapper.findById(id);
+        if (order == null) {
+            throw new RuntimeException("出库单不存在，id=" + id);
+        }
+        checkTransition(order.getStatus(), OrderStatus.REVERSED, OrderStatus.POSTED);
+        if (remark == null || remark.trim().isEmpty()) {
+            throw new RuntimeException("必须填写红冲原因");
+        }
+
+        Long warehouseId = order.getWarehouseId();
+        Long operatorId = getCurrentUserId();
+        String origNo = order.getOrderNo();
+
+        // ===== 2. 读取全部出库明细 =====
+        List<StockOutItem> items = stockOutItemMapper.findByOrderId(id);
+        if (items == null || items.isEmpty()) {
+            throw new RuntimeException("出库单明细为空，无法红冲");
+        }
+
+        // ===== 3. 反向回滚库存：出库红冲 = 加回库存，并写 OUT_REVERSE 流水 =====
+        for (StockOutItem item : items) {
+            Long productId = item.getProductId();
+            Integer quantity = item.getQuantity();
+
+            Stock stock = stockMapper.findByProductAndWarehouse(productId, warehouseId);
+            if (stock == null) {
+                throw new RuntimeException("商品ID " + productId + " 库存不存在，无法红冲");
+            }
+            int beforeQty = stock.getQuantity();
+
+            stockMapper.increaseQuantity(productId, warehouseId, quantity);
+
+            StockLog log = new StockLog();
+            log.setProductId(productId);
+            log.setWarehouseId(warehouseId);
+            log.setChangeType("OUT_REVERSE"); // 出库红冲反向流水
+            log.setChangeQuantity(quantity);
+            log.setBeforeQuantity(beforeQty);
+            log.setAfterQuantity(beforeQty + quantity);
+            log.setOrderNo(origNo);
+            log.setOperatorId(operatorId);
+            stockLogMapper.insert(log);
+        }
+
+        // ===== 4. 生成独立红冲单（原单号+"R"，终态已红冲）=====
+        StockOutOrder rev = new StockOutOrder();
+        rev.setOrderNo(origNo + "R");
+        rev.setWarehouseId(order.getWarehouseId());
+        rev.setReceiver(order.getReceiver());
+        rev.setOperatorId(order.getOperatorId());
+        rev.setTotalAmount(order.getTotalAmount());
+        rev.setStatus(OrderStatus.REVERSED);
+        rev.setReverseOfNo(origNo);
+        rev.setRemark(remark);
+        stockOutOrderMapper.insert(rev);
+
+        // ===== 5. 原单置已红冲 =====
+        Long auditorId = getCurrentUserId();
+        stockOutOrderMapper.updateStatus(id, OrderStatus.REVERSED, auditorId, LocalDateTime.now());
+
+        return rev;
+    }
+
+    @Override
     public Map<String, Object> getPage(StockOutPageDTO dto) {
         int offset = (dto.getPageNum() - 1) * dto.getPageSize();
         List<StockOutOrderVO> list = stockOutOrderMapper.searchPage(dto, offset);

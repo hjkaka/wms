@@ -6,6 +6,8 @@ import com.example.wms_backend.entity.*;
 import com.example.wms_backend.mapper.AuditLogMapper;
 import com.example.wms_backend.mapper.CategoryMapper;
 import com.example.wms_backend.mapper.ProductMapper;
+import com.example.wms_backend.mapper.StockInOrderMapper;
+import com.example.wms_backend.mapper.StockOutOrderMapper;
 import com.example.wms_backend.mapper.SysUserMapper;
 import com.example.wms_backend.mapper.WarehouseMapper;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -45,6 +47,10 @@ public class AuditLogAspect {
     private SysUserMapper sysUserMapper;
     @Autowired
     private CategoryMapper categoryMapper;
+    @Autowired
+    private StockInOrderMapper stockInOrderMapper;
+    @Autowired
+    private StockOutOrderMapper stockOutOrderMapper;
 
     @Around("@annotation(auditLog)")
     public Object record(ProceedingJoinPoint pjp, AuditLog auditLog) throws Throwable {
@@ -84,6 +90,14 @@ public class AuditLogAspect {
                 Long id = (args != null && args.length > 0) ? (Long) args[0] : null;
                 return id == null ? null : categoryMapper.findById(id);
             }
+            if ("stockin:REVERSE".equals(key) || "stockin:DELETE".equals(key)) {
+                Long id = (args != null && args.length > 0) ? (Long) args[0] : null;
+                return id == null ? null : stockInOrderMapper.findById(id);
+            }
+            if ("stockout:REVERSE".equals(key) || "stockout:DELETE".equals(key)) {
+                Long id = (args != null && args.length > 0) ? (Long) args[0] : null;
+                return id == null ? null : stockOutOrderMapper.findById(id);
+            }
         } catch (Exception e) {
             log.warn("[audit] 读取旧值失败: {}", e.getMessage());
         }
@@ -121,8 +135,14 @@ public class AuditLogAspect {
             case "stockin:CREATE":
                 fillStockIn(ent, (StockInOrder) unwrap(result));
                 break;
+            case "stockin:REVERSE":
+                fillStockInReverse(ent, (StockInOrder) unwrap(result), (StockInOrder) old);
+                break;
             case "stockout:CREATE":
                 fillStockOut(ent, (StockOutOrder) unwrap(result));
+                break;
+            case "stockout:REVERSE":
+                fillStockOutReverse(ent, (StockOutOrder) unwrap(result), (StockOutOrder) old);
                 break;
             case "category:CREATE":
                 fillCategoryCreate(ent, unwrap(result));
@@ -263,6 +283,22 @@ public class AuditLogAspect {
         ent.setDetail("出库过账 单号" + o.getOrderNo()
                 + " 仓库#" + o.getWarehouseId()
                 + " 金额" + o.getTotalAmount());
+    }
+
+    private void fillStockInReverse(com.example.wms_backend.entity.AuditLog ent, StockInOrder rev, StockInOrder old) {
+        if (rev == null) return;
+        ent.setTargetId(rev.getId());
+        ent.setTargetNo(rev.getOrderNo());
+        String orig = (old != null && old.getOrderNo() != null) ? old.getOrderNo() : (rev.getReverseOfNo() != null ? rev.getReverseOfNo() : "?");
+        ent.setDetail("入库单红冲: 被冲单" + orig + " 原因:" + rev.getRemark());
+    }
+
+    private void fillStockOutReverse(com.example.wms_backend.entity.AuditLog ent, StockOutOrder rev, StockOutOrder old) {
+        if (rev == null) return;
+        ent.setTargetId(rev.getId());
+        ent.setTargetNo(rev.getOrderNo());
+        String orig = (old != null && old.getOrderNo() != null) ? old.getOrderNo() : (rev.getReverseOfNo() != null ? rev.getReverseOfNo() : "?");
+        ent.setDetail("出库单红冲: 被冲单" + orig + " 原因:" + rev.getRemark());
     }
 
     private void fillCategoryCreate(com.example.wms_backend.entity.AuditLog ent, Object data) {

@@ -32,6 +32,9 @@ public class StockInOrder {
     // 备注
     private String remark;
 
+    // 红冲单关联的被冲原单号（普通单为 null，红冲单记录原单号）s2-3
+    private String reverseOfNo;
+
     // 审核时间
     private LocalDateTime auditTime;
 

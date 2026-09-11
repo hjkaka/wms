@@ -20,6 +20,7 @@ public class StockOutOrderVO {
     private BigDecimal totalAmount;
     private Integer status;
     private String remark;
+    private String reverseOfNo;      // 红冲单关联的被冲原单号（普通单为 null）s2-3
     private LocalDateTime auditTime;
     private Long auditorId;
     private LocalDateTime createTime;

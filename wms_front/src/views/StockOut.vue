@@ -10,6 +10,7 @@
               <el-option label="待审" :value="1" />
               <el-option label="已审" :value="2" />
               <el-option label="已过账" :value="3" />
+              <el-option label="已红冲" :value="4" />
             </el-select>
           </el-form-item>
           <el-form-item label="关键字">
@@ -43,6 +44,7 @@
               <el-button v-if="canReject(row)" type="warning" link size="small" @click="doAction(row, 'reject')">驳回</el-button>
               <el-button v-if="canWithdraw(row)" type="info" link size="small" @click="doAction(row, 'withdraw')">撤回</el-button>
               <el-button v-if="canPost(row)" type="danger" link size="small" @click="doAction(row, 'post')">过账</el-button>
+              <el-button v-if="canReverse(row)" type="warning" plain link size="small" @click="doReverse(row)">红冲</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -117,7 +119,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getStockOutPage, submitStockOut, withdrawStockOut,
-  approveStockOut, rejectStockOut, postStockOut, createStockOut
+  approveStockOut, rejectStockOut, postStockOut, createStockOut, reverseStockOut
 } from '../api/stock'
 import { getAllWarehouses } from '../api/warehouse'
 import { getAllProducts } from '../api/product'
@@ -133,8 +135,8 @@ const total = ref(0)
 const loading = ref(false)
 const query = reactive({ status: null, keyword: '', pageNum: 1, pageSize: 10 })
 
-const STATUS_TEXT = ['草稿', '待审', '已审', '已过账']
-const STATUS_TYPE = ['info', 'warning', 'primary', 'success']
+const STATUS_TEXT = ['草稿', '待审', '已审', '已过账', '已红冲']
+const STATUS_TYPE = ['info', 'warning', 'primary', 'success', 'danger']
 function statusText(s) { return STATUS_TEXT[s] ?? '未知' }
 function statusType(s) { return STATUS_TYPE[s] ?? 'info' }
 function formatTime(t) { return t ? String(t).replace('T', ' ').slice(0, 16) : '' }
@@ -146,6 +148,7 @@ function canApprove(row) { return canGoToAudit() && row.status === 1 }
 function canReject(row) { return canGoToAudit() && row.status === 1 }
 function canWithdraw(row) { return row.status === 1 }
 function canPost(row) { return canGoToAudit() && row.status === 2 }
+function canReverse(row) { return canGoToAudit() && row.status === 3 }    // 已过账→已红冲 s2-3
 
 async function fetchPage() {
   loading.value = true
@@ -178,6 +181,24 @@ async function doAction(row, act) {
   try {
     await ACTION_API[act](row.id)
     ElMessage.success('操作成功')
+    fetchPage()
+  } catch (e) { /* 拦截器已提示 */ }
+}
+
+// s2-3 红冲：需填原因，回滚库存生成红冲单（不可撤销）
+async function doReverse(row) {
+  let remark
+  try {
+    const r = await ElMessageBox.prompt(
+      `对出库单 ${row.orderNo} 执行红冲（冲销），将回滚库存并生成红冲单。\n请输入红冲原因：`,
+      '红冲确认',
+      { confirmButtonText: '确认红冲', cancelButtonText: '取消', inputPlaceholder: '必填，如：录错领用人/录错数量', inputValidator: v => (v && v.trim() ? true : '红冲原因不能为空') }
+    )
+    remark = r.value
+  } catch (e) { return }
+  try {
+    await reverseStockOut(row.id, remark)
+    ElMessage.success('红冲成功，已回滚库存并生成红冲单')
     fetchPage()
   } catch (e) { /* 拦截器已提示 */ }
 }

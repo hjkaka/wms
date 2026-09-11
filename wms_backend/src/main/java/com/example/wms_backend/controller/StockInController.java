@@ -105,4 +105,12 @@ public class StockInController {
     public Result<StockInOrder> post(@PathVariable Long id) {
         return Result.success(stockInService.post(id));
     }
+
+    /** 红冲：已过账→已红冲，回滚库存+写反向流水+生成红冲单（MANAGER/ADMIN，强制填原因）s2-3 */
+    @PostMapping("/{id}/reverse")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @AuditLog(module = "stockin", action = "REVERSE")
+    public Result<StockInOrder> reverse(@PathVariable Long id, @RequestParam String remark) {
+        return Result.success(stockInService.reverse(id, remark));
+    }
 }

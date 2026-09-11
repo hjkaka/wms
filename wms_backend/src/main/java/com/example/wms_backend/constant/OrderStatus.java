@@ -19,4 +19,8 @@ public class OrderStatus {
 
     // 已过账：已正式生效，库存与流水已更新，不可再改
     public static final int POSTED = 3;
+
+    // 已红冲（s2-3）：已过账(3)单据被红冲后的终态，不可再操作
+    // 红冲时回滚库存、写反向流水(IN_REVERSE/OUT_REVERSE)、生成独立红冲单
+    public static final int REVERSED = 4;
 }

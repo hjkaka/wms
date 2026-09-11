@@ -278,6 +278,77 @@ public class StockInServiceImpl implements StockInService {
     }
 
     @Override
+    public StockInOrder reverse(Long id, String remark) {
+        // ===== 1. 校验单据：必须已过账 =====
+        StockInOrder order = stockInOrderMapper.findById(id);
+        if (order == null) {
+            throw new RuntimeException("入库单不存在，id=" + id);
+        }
+        checkTransition(order.getStatus(), OrderStatus.REVERSED, OrderStatus.POSTED);
+        if (remark == null || remark.trim().isEmpty()) {
+            throw new RuntimeException("必须填写红冲原因");
+        }
+
+        Long warehouseId = order.getWarehouseId();
+        Long operatorId = getCurrentUserId();
+        String origNo = order.getOrderNo();
+
+        // ===== 2. 读取全部入库明细 =====
+        List<StockInItem> items = stockInItemMapper.findByOrderId(id);
+        if (items == null || items.isEmpty()) {
+            throw new RuntimeException("入库单明细为空，无法红冲");
+        }
+
+        // ===== 3. 反向回滚库存：入库红冲 = 扣减库存（带防负），并写 IN_REVERSE 流水 =====
+        for (StockInItem item : items) {
+            Long productId = item.getProductId();
+            Integer quantity = item.getQuantity();
+
+            Stock stock = stockMapper.findByProductAndWarehouse(productId, warehouseId);
+            if (stock == null) {
+                throw new RuntimeException("商品ID " + productId + " 库存不存在，无法红冲");
+            }
+            int beforeQty = stock.getQuantity();
+
+            // decreaseQuantity 带 quantity>=qty 原子条件，返回 0 = 库存不足
+            int affected = stockMapper.decreaseQuantity(productId, warehouseId, quantity);
+            if (affected == 0) {
+                throw new RuntimeException(
+                        "商品ID " + productId + " 库存不足，无法红冲（当前库存 " + beforeQty + ", 需扣减 " + quantity + "）");
+            }
+
+            StockLog log = new StockLog();
+            log.setProductId(productId);
+            log.setWarehouseId(warehouseId);
+            log.setChangeType("IN_REVERSE"); // 入库红冲反向流水
+            log.setChangeQuantity(quantity);
+            log.setBeforeQuantity(beforeQty);
+            log.setAfterQuantity(beforeQty - quantity);
+            log.setOrderNo(origNo);
+            log.setOperatorId(operatorId);
+            stockLogMapper.insert(log);
+        }
+
+        // ===== 4. 生成独立红冲单（原单号+"R"，终态已红冲）=====
+        StockInOrder rev = new StockInOrder();
+        rev.setOrderNo(origNo + "R");
+        rev.setWarehouseId(order.getWarehouseId());
+        rev.setSupplier(order.getSupplier());
+        rev.setOperatorId(order.getOperatorId());
+        rev.setTotalAmount(order.getTotalAmount());
+        rev.setStatus(OrderStatus.REVERSED);
+        rev.setReverseOfNo(origNo);
+        rev.setRemark(remark);
+        stockInOrderMapper.insert(rev);
+
+        // ===== 5. 原单置已红冲 =====
+        Long auditorId = getCurrentUserId();
+        stockInOrderMapper.updateStatus(id, OrderStatus.REVERSED, auditorId, LocalDateTime.now());
+
+        return rev;
+    }
+
+    @Override
     public Map<String, Object> getPage(StockInPageDTO dto) {
         // 计算跳过条数（第几页 * 每页条数）
         int offset = (dto.getPageNum() - 1) * dto.getPageSize();
