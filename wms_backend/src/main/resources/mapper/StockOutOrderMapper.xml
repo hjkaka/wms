@@ -59,4 +59,58 @@
         FROM stock_out_order
         WHERE id = #{id}
     </select>
+
+    <!-- ===== 更新状态（审核流）=====
+         status 状态机：0草稿/1待审/2已审/3已过账
+         audit_time / auditor_id 仅在传入时才覆盖（审核、驳回时写入审核人/时间） -->
+    <update id="updateStatus">
+        UPDATE stock_out_order
+        SET status = #{status},
+            update_time = NOW()
+        <if test="auditTime != null">
+            , audit_time = #{auditTime}
+        </if>
+        <if test="auditorId != null">
+            , auditor_id = #{auditorId}
+        </if>
+        WHERE id = #{id}
+    </update>
+
+    <!-- ===== 分页查询出库单（联表仓库/经办人）===== -->
+    <select id="searchPage" resultType="com.example.wms_backend.vo.StockOutOrderVO">
+        SELECT o.id, o.order_no AS orderNo, o.warehouse_id AS warehouseId,
+               w.name AS warehouseName, o.receiver, o.operator_id AS operatorId,
+               u.real_name AS operatorName, o.total_amount AS totalAmount, o.status,
+               o.remark, o.audit_time AS auditTime, o.auditor_id AS auditorId,
+               o.create_time AS createTime, o.update_time AS updateTime
+        FROM stock_out_order o
+        LEFT JOIN warehouse w ON o.warehouse_id = w.id
+        LEFT JOIN sys_user   u ON o.operator_id = u.id
+        <where>
+            <if test="dto.status != null">
+                AND o.status = #{dto.status}
+            </if>
+            <if test="dto.keyword != null and dto.keyword != ''">
+                AND (o.order_no LIKE CONCAT('%', #{dto.keyword}, '%')
+                OR o.receiver LIKE CONCAT('%', #{dto.keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY o.create_time DESC
+        LIMIT #{offset}, #{dto.pageSize}
+    </select>
+
+    <!-- ===== 统计总条数：条件与分页查询保持一致 ===== -->
+    <select id="countSearch" resultType="long">
+        SELECT COUNT(*)
+        FROM stock_out_order o
+        <where>
+            <if test="dto.status != null">
+                AND o.status = #{dto.status}
+            </if>
+            <if test="dto.keyword != null and dto.keyword != ''">
+                AND (o.order_no LIKE CONCAT('%', #{dto.keyword}, '%')
+                OR o.receiver LIKE CONCAT('%', #{dto.keyword}, '%'))
+            </if>
+        </where>
+    </select>
 </mapper>

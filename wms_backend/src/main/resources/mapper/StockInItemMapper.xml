@@ -34,4 +34,13 @@
             (#{item.orderId}, #{item.productId}, #{item.quantity}, #{item.unitPrice}, #{item.amount})
         </foreach>
     </insert>
+
+    <!-- ===== 按入库单ID查询明细 =====
+         过账时读取每条明细的 productId/quantity 用于更新库存
+         不内联 include：避免同名 Base_Column_List 碎片在多 mapper 间歧义 -->
+    <select id="findByOrderId" resultMap="StockInItemMap">
+        SELECT id, order_id, product_id, quantity, unit_price, amount, create_time
+        FROM stock_in_item
+        WHERE order_id = #{orderId}
+    </select>
 </mapper>

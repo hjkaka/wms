@@ -27,4 +27,12 @@
             (#{item.orderId}, #{item.productId}, #{item.quantity}, #{item.unitPrice}, #{item.amount})
         </foreach>
     </insert>
+
+    <!-- ===== 按出库单ID查询明细（过账时校验并扣减库存）=====
+         不内联 include：避免同名 Base_Column_List 碎片在多 mapper 间歧义 -->
+    <select id="findByOrderId" resultMap="StockOutItemMap">
+        SELECT id, order_id, product_id, quantity, unit_price, amount, create_time
+        FROM stock_out_item
+        WHERE order_id = #{orderId}
+    </select>
 </mapper>

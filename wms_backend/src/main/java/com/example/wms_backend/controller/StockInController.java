@@ -4,10 +4,14 @@ package com.example.wms_backend.controller;
 import com.example.wms_backend.annotation.AuditLog;
 import com.example.wms_backend.common.Result;
 import com.example.wms_backend.dto.StockInCreateDTO;
+import com.example.wms_backend.dto.StockInPageDTO;
 import com.example.wms_backend.entity.StockInOrder;
 import com.example.wms_backend.service.StockInService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 /**
  * 入库管理 Controller
@@ -49,9 +53,56 @@ public class StockInController {
     @PostMapping
     @AuditLog(module = "stockin", action = "CREATE")
     public Result<StockInOrder> createStockIn(@RequestBody StockInCreateDTO dto) {
-        // 交给 Service 层处理业务（计算金额、生成单号、更新库存、记流水）
+        // 交给 Service 层处理业务（计算金额、生成单号、存草稿）
         StockInOrder order = stockInService.createStockIn(dto);
         // 返回成功结果，data 里放创建好的入库单
         return Result.success(order);
+    }
+
+    /** 分页查询入库单列表（审核流） */
+    @GetMapping("/page")
+    public Result<Map<String, Object>> page(StockInPageDTO dto) {
+        return Result.success(stockInService.getPage(dto));
+    }
+
+    // ===== s2-2 审核流端点 =====
+    // 约束：库存只在"过账(post)"时变动；approve/reject/post 仅 ADMIN/MANAGER 可执行
+
+    /** 提交审核：草稿→待审 */
+    @PostMapping("/{id}/submit")
+    @AuditLog(module = "stockin", action = "SUBMIT")
+    public Result<StockInOrder> submit(@PathVariable Long id) {
+        return Result.success(stockInService.submit(id));
+    }
+
+    /** 撤回：待审→草稿（制单人可撤回） */
+    @PostMapping("/{id}/withdraw")
+    @AuditLog(module = "stockin", action = "WITHDRAW")
+    public Result<StockInOrder> withdraw(@PathVariable Long id) {
+        return Result.success(stockInService.withdraw(id));
+    }
+
+    /** 审核通过：待审→已审（MANAGER/ADMIN） */
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @AuditLog(module = "stockin", action = "APPROVE")
+    public Result<StockInOrder> approve(@PathVariable Long id) {
+        return Result.success(stockInService.approve(id));
+    }
+
+    /** 审核驳回：待审→草稿（MANAGER/ADMIN） */
+    @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @AuditLog(module = "stockin", action = "REJECT")
+    public Result<StockInOrder> reject(@PathVariable Long id) {
+        return Result.success(stockInService.reject(id));
+    }
+
+    /** 过账：已审→已过账，真正更新库存并记流水（MANAGER/ADMIN） */
+    @PostMapping("/{id}/post")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @AuditLog(module = "stockin", action = "POST")
+    public Result<StockInOrder> post(@PathVariable Long id) {
+        return Result.success(stockInService.post(id));
     }
 }

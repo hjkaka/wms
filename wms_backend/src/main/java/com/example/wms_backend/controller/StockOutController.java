@@ -4,10 +4,14 @@ package com.example.wms_backend.controller;
 import com.example.wms_backend.annotation.AuditLog;
 import com.example.wms_backend.common.Result;
 import com.example.wms_backend.dto.StockOutCreateDTO;
+import com.example.wms_backend.dto.StockOutPageDTO;
 import com.example.wms_backend.entity.StockOutOrder;
 import com.example.wms_backend.service.StockOutService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 /**
  * 出库管理 Controller
@@ -49,5 +53,52 @@ public class StockOutController {
         // 交给 Service：算金额、生成单号、校验库存、扣库存、记流水
         StockOutOrder order = stockOutService.createStockOut(dto);
         return Result.success(order);
+    }
+
+    /** 分页查询出库单列表（审核流） */
+    @GetMapping("/page")
+    public Result<Map<String, Object>> page(StockOutPageDTO dto) {
+        return Result.success(stockOutService.getPage(dto));
+    }
+
+    // ===== s2-2 审核流端点 =====
+    // 约束：库存只在"过账(post)"时变动；approve/reject/post 仅 ADMIN/MANAGER 可执行
+
+    /** 提交审核：草稿→待审 */
+    @PostMapping("/{id}/submit")
+    @AuditLog(module = "stockout", action = "SUBMIT")
+    public Result<StockOutOrder> submit(@PathVariable Long id) {
+        return Result.success(stockOutService.submit(id));
+    }
+
+    /** 撤回：待审→草稿（制单人可撤回） */
+    @PostMapping("/{id}/withdraw")
+    @AuditLog(module = "stockout", action = "WITHDRAW")
+    public Result<StockOutOrder> withdraw(@PathVariable Long id) {
+        return Result.success(stockOutService.withdraw(id));
+    }
+
+    /** 审核通过：待审→已审（MANAGER/ADMIN） */
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @AuditLog(module = "stockout", action = "APPROVE")
+    public Result<StockOutOrder> approve(@PathVariable Long id) {
+        return Result.success(stockOutService.approve(id));
+    }
+
+    /** 审核驳回：待审→草稿（MANAGER/ADMIN） */
+    @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @AuditLog(module = "stockout", action = "REJECT")
+    public Result<StockOutOrder> reject(@PathVariable Long id) {
+        return Result.success(stockOutService.reject(id));
+    }
+
+    /** 过账：已审→已过账，真正校验并扣减库存、记流水（MANAGER/ADMIN） */
+    @PostMapping("/{id}/post")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @AuditLog(module = "stockout", action = "POST")
+    public Result<StockOutOrder> post(@PathVariable Long id) {
+        return Result.success(stockOutService.post(id));
     }
 }

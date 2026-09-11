@@ -15,4 +15,7 @@ public interface StockOutItemMapper {
     // 批量插入出库明细
     // orderId = 所属出库单ID，items = 明细列表
     int batchInsert(@Param("orderId") Long orderId, @Param("items") List<StockOutItem> items);
+
+    // 按出库单ID查询明细（过账时校验安全库存并扣减）
+    List<StockOutItem> findByOrderId(@Param("orderId") Long orderId);
 }
