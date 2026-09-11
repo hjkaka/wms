@@ -152,6 +152,19 @@ public class StockOutServiceImpl implements StockOutService {
             throw new RuntimeException("出库单不存在，id=" + id);
         }
         checkTransition(order.getStatus(), OrderStatus.PENDING, OrderStatus.DRAFT);
+        Long warehouseId = order.getWarehouseId();
+
+        // ===== 【s3-1 锁定可售库存】提交审核时占用库存，防止超卖 =====
+        List<StockOutItem> items = stockOutItemMapper.findByOrderId(id);
+        for (StockOutItem item : items) {
+            int affected = stockMapper.lockQuantity(item.getProductId(), warehouseId, item.getQuantity());
+            if (affected == 0) {
+                // 可售库存不足（可能被其他出库单占用），事务回滚，提交失败保持草稿
+                throw new RuntimeException(
+                        "商品ID " + item.getProductId() + " 可售库存不足，无法提交审核（可能已被其他出库单占用）");
+            }
+        }
+
         stockOutOrderMapper.updateStatus(id, OrderStatus.PENDING, null, null);
         order.setStatus(OrderStatus.PENDING);
         return order;
@@ -164,6 +177,14 @@ public class StockOutServiceImpl implements StockOutService {
             throw new RuntimeException("出库单不存在，id=" + id);
         }
         checkTransition(order.getStatus(), OrderStatus.DRAFT, OrderStatus.PENDING);
+        Long warehouseId = order.getWarehouseId();
+
+        // ===== 【s3-1 释放锁定】撤回回草稿时释放占用的可售库存 =====
+        List<StockOutItem> items = stockOutItemMapper.findByOrderId(id);
+        for (StockOutItem item : items) {
+            stockMapper.unlockQuantity(item.getProductId(), warehouseId, item.getQuantity());
+        }
+
         stockOutOrderMapper.updateStatus(id, OrderStatus.DRAFT, null, null);
         order.setStatus(OrderStatus.DRAFT);
         return order;
@@ -191,6 +212,14 @@ public class StockOutServiceImpl implements StockOutService {
             throw new RuntimeException("出库单不存在，id=" + id);
         }
         checkTransition(order.getStatus(), OrderStatus.DRAFT, OrderStatus.PENDING);
+        Long warehouseId = order.getWarehouseId();
+
+        // ===== 【s3-1 释放锁定】驳回回草稿时释放占用的可售库存 =====
+        List<StockOutItem> items = stockOutItemMapper.findByOrderId(id);
+        for (StockOutItem item : items) {
+            stockMapper.unlockQuantity(item.getProductId(), warehouseId, item.getQuantity());
+        }
+
         Long auditorId = getCurrentUserId();
         stockOutOrderMapper.updateStatus(id, OrderStatus.DRAFT, auditorId, LocalDateTime.now());
         order.setStatus(OrderStatus.DRAFT);
@@ -235,10 +264,10 @@ public class StockOutServiceImpl implements StockOutService {
                         "商品ID " + productId + " 库存不足，当前库存 " + beforeQty + "，出库 " + quantity);
             }
 
-            // ③ 扣减库存
-            // decreaseQuantity 的 SQL 里带 quantity >= 出库数 条件
-            // 即再次防止并发时扣成负数：返回 0 = 库存不足
-            int affected = stockMapper.decreaseQuantity(productId, warehouseId, quantity);
+            // ③ 扣减库存（消耗锁定量：quantity 与 locked_quantity 同时减）
+            // postDecrease 的 SQL 里带 quantity >= 出库数 且 locked_quantity >= 出库数 条件
+            // 返回 0 = 库存/锁定不足
+            int affected = stockMapper.postDecrease(productId, warehouseId, quantity);
             if (affected == 0) {
                 throw new RuntimeException("商品ID " + productId + " 库存不足，扣减失败");
             }

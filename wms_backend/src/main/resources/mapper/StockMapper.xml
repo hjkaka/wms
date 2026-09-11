@@ -8,6 +8,7 @@
         <result property="productId" column="product_id"/>
         <result property="warehouseId" column="warehouse_id"/>
         <result property="quantity" column="quantity"/>
+        <result property="lockedQuantity" column="locked_quantity"/>
         <result property="createTime" column="create_time"/>
         <result property="updateTime" column="update_time"/>
     </resultMap>
@@ -18,8 +19,8 @@
     </select>
 
     <insert id="insert" parameterType="com.example.wms_backend.entity.Stock">
-        INSERT INTO stock (product_id, warehouse_id, quantity)
-        VALUES (#{stock.productId}, #{stock.warehouseId}, #{stock.quantity})
+        INSERT INTO stock (product_id, warehouse_id, quantity, locked_quantity)
+        VALUES (#{stock.productId}, #{stock.warehouseId}, #{stock.quantity}, #{stock.lockedQuantity})
     </insert>
 
     <update id="increaseQuantity">
@@ -36,6 +37,36 @@
         WHERE product_id = #{productId}
           AND warehouse_id = #{warehouseId}
           AND quantity >= #{quantity}
+    </update>
+
+    <!-- ===== s3-1 锁定/在途库存 =====
+         可售库存 = quantity - locked_quantity
+         出库单"提交审核"时锁定可售库存 -->
+    <update id="lockQuantity">
+        UPDATE stock SET locked_quantity = locked_quantity + #{quantity}
+        WHERE product_id = #{productId}
+          AND warehouse_id = #{warehouseId}
+          AND quantity - locked_quantity >= #{quantity}
+    </update>
+
+    <!-- 释放锁定：出库单"撤回/驳回"回草稿时 -->
+    <update id="unlockQuantity">
+        UPDATE stock SET locked_quantity = locked_quantity - #{quantity}
+        WHERE product_id = #{productId}
+          AND warehouse_id = #{warehouseId}
+          AND locked_quantity >= #{quantity}
+    </update>
+
+    <!-- 过账消耗：锁定转为实际扣减，quantity 和 locked_quantity 同时减
+         条件：quantity >= 出库数 且 locked_quantity >= 出库数（双防负数） -->
+    <update id="postDecrease">
+        UPDATE stock SET
+            quantity = quantity - #{quantity},
+            locked_quantity = locked_quantity - #{quantity}
+        WHERE product_id = #{productId}
+          AND warehouse_id = #{warehouseId}
+          AND quantity >= #{quantity}
+          AND locked_quantity >= #{quantity}
     </update>
     <!-- ===== 按商品汇总 =====
          resultType 直接写 VO 全类名，靠"别名自动映射"：
@@ -86,6 +117,8 @@
         p.code  AS product_code,
         w.name  AS warehouse_name,
         s.quantity,
+        s.locked_quantity,
+        (s.quantity - s.locked_quantity) AS available_quantity,
         p.warning_qty,
         CASE WHEN s.quantity &lt;= p.warning_qty THEN 1 ELSE 0 END AS warn_flag
         FROM stock s

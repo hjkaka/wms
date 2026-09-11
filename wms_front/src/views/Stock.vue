@@ -24,7 +24,9 @@
             <el-table-column prop="productCode" label="编码" width="130" />
             <el-table-column prop="productName" label="商品名称" />
             <el-table-column prop="warehouseName" label="仓库" />
-            <el-table-column prop="quantity" label="库存数量" />
+            <el-table-column prop="quantity" label="在库" width="90" />
+            <el-table-column prop="lockedQuantity" label="锁定" width="90" />
+            <el-table-column prop="availableQuantity" label="可售" width="90" />
             <el-table-column prop="warningQty" label="预警值" width="90" />
             <el-table-column label="预警" width="90">
               <template #default="{ row }">

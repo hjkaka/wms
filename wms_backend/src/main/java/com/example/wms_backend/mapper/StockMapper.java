@@ -37,6 +37,33 @@ public interface StockMapper {
             @Param("quantity") Integer quantity
     );
 
+    // ===== s3-1 锁定/在途库存 =====
+
+    // 锁定可售库存（出库单"提交审核"时调用）
+    // 原子操作：只在"可售库存(quantity - locked_quantity) >= 锁定数"时成功
+    // 返回受影响行数：1=锁定成功，0=可售不足（被其他出库单占用）
+    int lockQuantity(
+            @Param("productId") Long productId,
+            @Param("warehouseId") Long warehouseId,
+            @Param("quantity") Integer quantity
+    );
+
+    // 释放锁定（出库单"撤回/驳回"回草稿时调用）
+    int unlockQuantity(
+            @Param("productId") Long productId,
+            @Param("warehouseId") Long warehouseId,
+            @Param("quantity") Integer quantity
+    );
+
+    // 过账消耗（出库单"过账"时调用）：锁定转为实际扣减，quantity 和 locked_quantity 同时减
+    // 带条件 quantity >= 出库数 且 locked_quantity >= 出库数，防负数
+    // 返回受影响行数：1=成功，0=库存/锁定不足
+    int postDecrease(
+            @Param("productId") Long productId,
+            @Param("warehouseId") Long warehouseId,
+            @Param("quantity") Integer quantity
+    );
+
     // 按商品维度汇总：每个商品一行，总库存 = 各仓库求和
     // GROUP BY p.id → 一个商品只出一行
     List<StockSummaryVO> summaryByProduct();

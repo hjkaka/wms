@@ -18,6 +18,10 @@ public class StockInfoVO {
     private String warehouseName;
     // 当前库存数量
     private Integer quantity;
+    // 锁定/在途库存数量（出库单待审/已审占用）
+    private Integer lockedQuantity;
+    // 可售库存 = quantity - locked_quantity
+    private Integer availableQuantity;
     // 预警线（来自 product.warning_qty）
     private Integer warningQty;
     // 是否预警：quantity <= warning_qty 为 true

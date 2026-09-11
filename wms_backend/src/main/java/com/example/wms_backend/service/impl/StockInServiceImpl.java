@@ -249,6 +249,7 @@ public class StockInServiceImpl implements StockInService {
                 stock.setProductId(productId);
                 stock.setWarehouseId(warehouseId);
                 stock.setQuantity(quantity);
+                stock.setLockedQuantity(0); // s3-1: 新建库存默认无锁定
                 stockMapper.insert(stock);
                 beforeQty = 0;
             } else {
