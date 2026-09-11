@@ -70,10 +70,8 @@ public interface WarehouseMapper {
 
     // ===== 方法6：新增仓库 =====
     // 插入一条新的仓库记录
-    //
-    // @Param("warehouse")：给参数起个名字
-    // 方法接收一个 Warehouse 对象，里面包含要插入的数据
-    Warehouse insert(@Param("warehouse") Warehouse warehouse);
+    // 返回 int（影响行数）；自增主键通过 useGeneratedKeys/selectKey 写回 warehouse.id
+    int insert(@Param("warehouse") Warehouse warehouse);
 
     // ===== 方法7：修改仓库 =====
     // 根据 ID 更新仓库信息

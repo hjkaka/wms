@@ -1,6 +1,7 @@
 package com.example.wms_backend.controller;
 
 // ===== 1. 定义 REST 接口的位置和返回类型 =====
+import com.example.wms_backend.annotation.AuditLog;
 import com.example.wms_backend.common.Result;
 import com.example.wms_backend.dto.StockInCreateDTO;
 import com.example.wms_backend.entity.StockInOrder;
@@ -46,6 +47,7 @@ public class StockInController {
      * Result<StockInOrder>：统一返回格式
      */
     @PostMapping
+    @AuditLog(module = "stockin", action = "CREATE")
     public Result<StockInOrder> createStockIn(@RequestBody StockInCreateDTO dto) {
         // 交给 Service 层处理业务（计算金额、生成单号、更新库存、记流水）
         StockInOrder order = stockInService.createStockIn(dto);

@@ -55,6 +55,12 @@
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
 
+        <!-- AOP：操作审计日志（AOP 留痕） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
         <!-- ========== 数据库 ========== -->
 
         <!-- MyBatis：操作数据库 -->

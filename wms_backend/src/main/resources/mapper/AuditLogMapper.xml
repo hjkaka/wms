@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.wms_backend.mapper.AuditLogMapper">
+
+    <insert id="insert" parameterType="com.example.wms_backend.entity.AuditLog"
+            useGeneratedKeys="true" keyProperty="log.id">
+        INSERT INTO audit_log (
+            module, action, target_id, target_no, detail,
+            operator_id, operator_name, request_uri, ip
+        ) VALUES (
+            #{log.module}, #{log.action}, #{log.targetId}, #{log.targetNo}, #{log.detail},
+            #{log.operatorId}, #{log.operatorName}, #{log.requestUri}, #{log.ip}
+        )
+    </insert>
+
+</mapper>

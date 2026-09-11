@@ -122,10 +122,6 @@
         (#{warehouse.name}, #{warehouse.code}, #{warehouse.address},
         #{warehouse.managerId}, #{warehouse.status},
         NOW(), NOW())
-        <!-- SELECT KEY_INSERT_ID()：获取刚才插入的主键ID -->
-        <selectKey resultType="long" keyProperty="id" order="AFTER">
-            SELECT LAST_INSERT_ID()
-        </selectKey>
     </insert>
 
     <!-- ===== 第81-91行：修改仓库 ===== -->

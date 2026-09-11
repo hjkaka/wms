@@ -1,5 +1,6 @@
 package com.example.wms_backend.controller;
 
+import com.example.wms_backend.annotation.AuditLog;
 import com.example.wms_backend.common.Result;
 import com.example.wms_backend.dto.WarehouseQueryDTO;
 import com.example.wms_backend.entity.Warehouse;
@@ -22,6 +23,7 @@ public class WarehouseController {
     // POST /api/warehouse（主数据维护，仅 ADMIN/MANAGER）
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @AuditLog(module = "warehouse", action = "CREATE")
     public Result<Warehouse> createWarehouse(@RequestBody Warehouse warehouse) {
         Warehouse created = warehouseService.createWarehouse(warehouse);
         return Result.success(created);
@@ -32,6 +34,7 @@ public class WarehouseController {
     // 注意：这里用 @PutMapping，不是 @PostMapping
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @AuditLog(module = "warehouse", action = "UPDATE")
     public Result<Warehouse> updateWarehouse(
             @PathVariable Long id,
             @RequestBody Warehouse warehouse) {
@@ -43,6 +46,7 @@ public class WarehouseController {
     // DELETE /api/warehouse/{id}
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @AuditLog(module = "warehouse", action = "DELETE")
     public Result<Void> deleteWarehouse(@PathVariable Long id) {
         warehouseService.deleteWarehouse(id);
         return Result.success();

@@ -1,6 +1,7 @@
 package com.example.wms_backend.controller;
 
 // ===== 引入所需类 =====
+import com.example.wms_backend.annotation.AuditLog;
 import com.example.wms_backend.common.Result;
 import com.example.wms_backend.dto.StockOutCreateDTO;
 import com.example.wms_backend.entity.StockOutOrder;
@@ -43,6 +44,7 @@ public class StockOutController {
      * @RequestBody：把请求体 JSON 转成 StockOutCreateDTO
      */
     @PostMapping
+    @AuditLog(module = "stockout", action = "CREATE")
     public Result<StockOutOrder> createStockOut(@RequestBody StockOutCreateDTO dto) {
         // 交给 Service：算金额、生成单号、校验库存、扣库存、记流水
         StockOutOrder order = stockOutService.createStockOut(dto);
