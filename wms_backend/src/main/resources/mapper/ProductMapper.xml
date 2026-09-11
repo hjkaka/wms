@@ -78,6 +78,48 @@
         </where>
     </select>
 
+    <!-- ===== 条件分页查询（分类 id 集合，选父分类时含子分类商品） ===== -->
+    <select id="findByConditionIds" resultMap="ProductMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM product
+        <where>
+            <if test="name != null and name != ''">
+                AND name LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <if test="categoryIds != null and categoryIds.size() > 0">
+                AND category_id IN
+                <foreach collection="categoryIds" item="cid" open="(" separator="," close=")">
+                    #{cid}
+                </foreach>
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- ===== 统计数量（分类 id 集合） ===== -->
+    <select id="countByConditionIds" resultType="long">
+        SELECT COUNT(*)
+        FROM product
+        <where>
+            <if test="name != null and name != ''">
+                AND name LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <if test="categoryIds != null and categoryIds.size() > 0">
+                AND category_id IN
+                <foreach collection="categoryIds" item="cid" open="(" separator="," close=")">
+                    #{cid}
+                </foreach>
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+    </select>
+
     <!-- ===== 新增商品 ===== -->
     <insert id="insert" parameterType="com.example.wms_backend.entity.Product"
             useGeneratedKeys="true" keyProperty="id">

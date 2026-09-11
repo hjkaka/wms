@@ -6,8 +6,17 @@
         <el-form-item label="商品名称">
           <el-input v-model="query.name" placeholder="输入名称" clearable style="width: 180px" @keyup.enter="handleSearch" />
         </el-form-item>
-        <el-form-item label="分类ID">
-          <el-input-number v-model="query.categoryId" :min="1" placeholder="分类" />
+        <el-form-item label="分类">
+          <el-tree-select
+            v-model="query.categoryId"
+            :data="categoryTree"
+            :props="{ label: 'name', children: 'children' }"
+            placeholder="全部分类"
+            clearable
+            style="width: 200px"
+            check-strictly
+            @change="handleSearch"
+          />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="query.status" placeholder="全部" clearable style="width: 120px">
@@ -29,7 +38,9 @@
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column prop="name" label="商品名称" />
         <el-table-column prop="code" label="编码" width="130" />
-        <el-table-column prop="categoryId" label="分类ID" width="90" />
+        <el-table-column label="分类" width="130">
+          <template #default="{ row }">{{ categoryName(row.categoryId) }}</template>
+        </el-table-column>
         <el-table-column prop="unit" label="单位" width="70" />
         <el-table-column prop="spec" label="规格" />
         <el-table-column prop="price" label="售价" width="100" />
@@ -68,8 +79,14 @@
         <el-form-item label="商品编码" prop="code">
           <el-input v-model="form.code" />
         </el-form-item>
-        <el-form-item label="分类ID" prop="categoryId">
-          <el-input-number v-model="form.categoryId" :min="0" />
+        <el-form-item label="分类" prop="categoryId">
+          <el-tree-select
+            v-model="form.categoryId"
+            :data="categoryTree"
+            :props="{ label: 'name', children: 'children' }"
+            placeholder="请选择分类"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="单位" prop="unit">
           <el-input v-model="form.unit" placeholder="件/箱/kg" />
@@ -102,6 +119,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getProductPage, createProduct, updateProduct, deleteProduct } from '../api/product'
+import { getCategoryTree } from '../api/category'
 
 const list = ref([])
 const total = ref(0)
@@ -109,6 +127,27 @@ const loading = ref(false)
 const dialogVisible = ref(false)
 const saving = ref(false)
 const formRef = ref()
+
+// 分类树与 id->名称 映射
+const categoryTree = ref([])
+const categoryNameMap = ref({})
+
+async function loadCategories() {
+  categoryTree.value = await getCategoryTree()
+  const map = {}
+  const walk = nodes => {
+    for (const n of nodes) {
+      map[n.id] = n.name
+      if (n.children && n.children.length) walk(n.children)
+    }
+  }
+  walk(categoryTree.value)
+  categoryNameMap.value = map
+}
+
+function categoryName(id) {
+  return id ? (categoryNameMap.value[id] || '#' + id) : '-'
+}
 
 const query = reactive({ name: '', categoryId: null, status: null, pageNum: 1, pageSize: 10 })
 const form = reactive({
@@ -121,7 +160,10 @@ const rules = {
   code: [{ required: true, message: '请输入商品编码', trigger: 'blur' }]
 }
 
-onMounted(fetchList)
+onMounted(() => {
+  loadCategories()
+  fetchList()
+})
 
 async function fetchList() {
   loading.value = true

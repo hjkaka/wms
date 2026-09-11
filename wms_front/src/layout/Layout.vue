@@ -22,6 +22,10 @@
           <el-icon><Goods /></el-icon>
           <span>商品管理</span>
         </el-menu-item>
+        <el-menu-item index="/category">
+          <el-icon><Files /></el-icon>
+          <span>分类管理</span>
+        </el-menu-item>
         <el-menu-item index="/stockin">
           <el-icon><Download /></el-icon>
           <span>入库管理</span>

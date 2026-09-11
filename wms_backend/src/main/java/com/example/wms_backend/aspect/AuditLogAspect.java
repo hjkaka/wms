@@ -4,6 +4,7 @@ import com.example.wms_backend.annotation.AuditLog;
 import com.example.wms_backend.common.Result;
 import com.example.wms_backend.entity.*;
 import com.example.wms_backend.mapper.AuditLogMapper;
+import com.example.wms_backend.mapper.CategoryMapper;
 import com.example.wms_backend.mapper.ProductMapper;
 import com.example.wms_backend.mapper.SysUserMapper;
 import com.example.wms_backend.mapper.WarehouseMapper;
@@ -42,6 +43,8 @@ public class AuditLogAspect {
     private WarehouseMapper warehouseMapper;
     @Autowired
     private SysUserMapper sysUserMapper;
+    @Autowired
+    private CategoryMapper categoryMapper;
 
     @Around("@annotation(auditLog)")
     public Object record(ProceedingJoinPoint pjp, AuditLog auditLog) throws Throwable {
@@ -76,6 +79,10 @@ public class AuditLogAspect {
             if ("warehouse:UPDATE".equals(key) || "warehouse:DELETE".equals(key)) {
                 Long id = (args != null && args.length > 0) ? (Long) args[0] : null;
                 return id == null ? null : warehouseMapper.findById(id);
+            }
+            if ("category:UPDATE".equals(key) || "category:DELETE".equals(key)) {
+                Long id = (args != null && args.length > 0) ? (Long) args[0] : null;
+                return id == null ? null : categoryMapper.findById(id);
             }
         } catch (Exception e) {
             log.warn("[audit] 读取旧值失败: {}", e.getMessage());
@@ -116,6 +123,15 @@ public class AuditLogAspect {
                 break;
             case "stockout:CREATE":
                 fillStockOut(ent, (StockOutOrder) unwrap(result));
+                break;
+            case "category:CREATE":
+                fillCategoryCreate(ent, unwrap(result));
+                break;
+            case "category:UPDATE":
+                fillCategoryUpdate(ent, (Category) old, extractEntity(result, Category.class));
+                break;
+            case "category:DELETE":
+                fillCategoryDelete(ent, (Category) old);
                 break;
             default:
                 break;
@@ -247,6 +263,39 @@ public class AuditLogAspect {
         ent.setDetail("出库过账 单号" + o.getOrderNo()
                 + " 仓库#" + o.getWarehouseId()
                 + " 金额" + o.getTotalAmount());
+    }
+
+    private void fillCategoryCreate(com.example.wms_backend.entity.AuditLog ent, Object data) {
+        if (data instanceof Category) {
+            Category c = (Category) data;
+            ent.setTargetId(c.getId());
+            ent.setDetail("新增分类: " + c.getName()
+                    + (c.getParentId() != null && !c.getParentId().equals(0L) ? "(子分类, 父#" + c.getParentId() + ")" : "(顶级分类)"));
+        }
+    }
+
+    private void fillCategoryUpdate(com.example.wms_backend.entity.AuditLog ent, Category oldC, Category newC) {
+        ent.setTargetId(oldC == null ? (newC == null ? null : newC.getId()) : oldC.getId());
+        if (oldC != null && newC != null) {
+            StringBuilder sb = new StringBuilder("分类修改: ");
+            diff(sb, "名称", oldC.getName(), newC.getName());
+            diff(sb, "父分类", oldC.getParentId(), newC.getParentId());
+            diff(sb, "排序", oldC.getSort(), newC.getSort());
+            diff(sb, "状态", oldC.getStatus(), newC.getStatus());
+            ent.setDetail(truncate(sb.toString()));
+        } else if (oldC != null) {
+            // 启停等无返回值场景：记录状态变化
+            ent.setDetail("分类修改: " + oldC.getName() + " 状态=>" + oldC.getStatus());
+        } else {
+            ent.setDetail("分类修改 #" + ent.getTargetId());
+        }
+    }
+
+    private void fillCategoryDelete(com.example.wms_backend.entity.AuditLog ent, Category oldC) {
+        ent.setTargetId(oldC == null ? null : oldC.getId());
+        ent.setDetail(oldC != null
+                ? "删除分类: " + oldC.getName() + "(父#" + oldC.getParentId() + ")"
+                : "删除分类(旧值未捕获)");
     }
 
     // ---------- 小工具 ----------

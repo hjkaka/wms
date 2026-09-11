@@ -18,7 +18,7 @@ public interface ProductMapper {
     // 用于前端列表展示
     List<Product> findAll();
 
-    // ===== 条件分页查询商品 =====
+    // ===== 条件分页查询商品（单分类） =====
     // 支持按名称模糊查询、按分类筛选、按状态筛选
     List<Product> findByCondition(
             @Param("name") String name,
@@ -28,10 +28,26 @@ public interface ProductMapper {
             @Param("pageSize") Integer pageSize
     );
 
-    // ===== 统计符合条件的商品数量 =====
+    // ===== 条件分页查询商品（按分类 id 集合，支持选父分类时含子分类商品） =====
+    List<Product> findByConditionIds(
+            @Param("name") String name,
+            @Param("categoryIds") List<Long> categoryIds,
+            @Param("status") Integer status,
+            @Param("offset") Integer offset,
+            @Param("pageSize") Integer pageSize
+    );
+
+    // ===== 统计符合条件的商品数量（单分类） =====
     long countByCondition(
             @Param("name") String name,
             @Param("categoryId") Long categoryId,
+            @Param("status") Integer status
+    );
+
+    // ===== 统计符合条件的商品数量（分类 id 集合） =====
+    long countByConditionIds(
+            @Param("name") String name,
+            @Param("categoryIds") List<Long> categoryIds,
             @Param("status") Integer status
     );
 

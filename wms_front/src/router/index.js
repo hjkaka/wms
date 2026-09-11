@@ -13,6 +13,7 @@ const routes = [
       { path: 'dashboard', name: 'Dashboard', component: () => import('../views/Dashboard.vue'), meta: { title: '首页' } },
       { path: 'warehouse', name: 'Warehouse', component: () => import('../views/Warehouse.vue'), meta: { title: '仓库管理' } },
       { path: 'product', name: 'Product', component: () => import('../views/Product.vue'), meta: { title: '商品管理' } },
+      { path: 'category', name: 'Category', component: () => import('../views/Category.vue'), meta: { title: '分类管理' } },
       { path: 'stockin', name: 'StockIn', component: () => import('../views/StockIn.vue'), meta: { title: '入库管理' } },
       { path: 'stockout', name: 'StockOut', component: () => import('../views/StockOut.vue'), meta: { title: '出库管理' } },
       { path: 'stock', name: 'Stock', component: () => import('../views/Stock.vue'), meta: { title: '库存查询' } },

@@ -3,6 +3,7 @@ package com.example.wms_backend.service.impl;
 import com.example.wms_backend.dto.ProductQueryDTO;
 import com.example.wms_backend.entity.Product;
 import com.example.wms_backend.mapper.ProductMapper;
+import com.example.wms_backend.service.CategoryService;
 import com.example.wms_backend.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -12,6 +13,9 @@ import java.util.List;
 public class ProductServiceImpl implements ProductService {
     @Autowired
     private ProductMapper productMapper;
+
+    @Autowired
+    private CategoryService categoryService;
     @Override
     public Product createProduct(Product product){
         // ===== 第1步：设置默认值 =====
@@ -101,42 +105,32 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public Object[] queryProducts(ProductQueryDTO queryDTO) {
-        // ===== 第1步：查询当前页的数据 =====
-        // 调用 Mapper 的条件查询方法
-        // 传入了4个参数：
-        // 1. name：商品名称（支持模糊查询）
-        // 2. categoryId：分类ID（精确筛选）
-        // 3. status：状态筛选（0或1）
-        // 4. offset：分页起始位置（从第几条开始）
-        // 5. pageSize：每页多少条
-        //
-        // SQL 执行结果：返回当前页的商品列表
-        List<Product> list = productMapper.findByCondition(
-                queryDTO.getName(),       // 名称
-                queryDTO.getCategoryId(), // 分类ID
-                queryDTO.getStatus(),     // 状态
-                queryDTO.getOffset(),     // 起始位置
-                queryDTO.getPageSize()    // 每页条数
-        );
+        // ===== 分类过滤展开 =====
+        // 若指定了分类，需把它及其所有子分类都纳入过滤范围（选父分类时能看到其下子分类的商品）。
+        // 例如选顶级"数码产品"，则手机/电脑等子分类下的商品都要查到。
+        List<Long> categoryIds = null;
+        if (queryDTO.getCategoryId() != null) {
+            categoryIds = categoryService.collectRelatedIds(queryDTO.getCategoryId());
+        }
 
-        // ===== 第2步：查询总记录数 =====
-        // 分页查询需要知道"总共有多少条数据"
-        // 前端根据这个总数计算"总共有多少页"
-        // 比如：总共 100 条，每页 10 条 → 总共 10 页
-        long total = productMapper.countByCondition(
-                queryDTO.getName(),
-                queryDTO.getCategoryId(),
-                queryDTO.getStatus()
-        );
+        List<Product> list;
+        long total;
+        if (categoryIds != null) {
+            // 展开后的分类 id 集合非空才查（分类若不存在则查到空）
+            list = productMapper.findByConditionIds(
+                    queryDTO.getName(), categoryIds, queryDTO.getStatus(),
+                    queryDTO.getOffset(), queryDTO.getPageSize());
+            total = productMapper.countByConditionIds(
+                    queryDTO.getName(), categoryIds, queryDTO.getStatus());
+        } else {
+            list = productMapper.findByCondition(
+                    queryDTO.getName(), queryDTO.getCategoryId(), queryDTO.getStatus(),
+                    queryDTO.getOffset(), queryDTO.getPageSize());
+            total = productMapper.countByCondition(
+                    queryDTO.getName(), queryDTO.getCategoryId(), queryDTO.getStatus());
+        }
 
-        // ===== 第3步：组装返回结果 =====
-        // 返回一个 Object[] 数组
-        // [0] = 商品列表（List<Product>）
-        // [1] = 总记录数（long）
-        //
-        // 为什么用 Object[] 而不是专门的类？
-        // 因为这里暂时不想创建新的类
-        // 后面等 Controller 写好了，我们会用 Map 来包装
+        // ===== 组装返回结果 =====
         return new Object[]{list, total};
     }
 }
