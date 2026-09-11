@@ -15,7 +15,8 @@ const routes = [
       { path: 'product', name: 'Product', component: () => import('../views/Product.vue'), meta: { title: '商品管理' } },
       { path: 'stockin', name: 'StockIn', component: () => import('../views/StockIn.vue'), meta: { title: '入库管理' } },
       { path: 'stockout', name: 'StockOut', component: () => import('../views/StockOut.vue'), meta: { title: '出库管理' } },
-      { path: 'stock', name: 'Stock', component: () => import('../views/Stock.vue'), meta: { title: '库存查询' } }
+      { path: 'stock', name: 'Stock', component: () => import('../views/Stock.vue'), meta: { title: '库存查询' } },
+      { path: 'user', name: 'User', component: () => import('../views/User.vue'), meta: { title: '用户管理', roles: ['ADMIN'] } }
     ]
   }
 ]
@@ -25,7 +26,7 @@ const router = createRouter({
   routes
 })
 
-// 路由守卫：未登录跳登录页
+// 路由守卫：未登录跳登录页；有角色限制的页面校验角色
 router.beforeEach(to => {
   const token = localStorage.getItem('token')
   if (to.path !== '/login' && !token) {
@@ -33,6 +34,18 @@ router.beforeEach(to => {
   }
   if (to.path === '/login' && token) {
     return '/'
+  }
+  // 校验角色（meta.roles：允许访问的角色列表）
+  if (to.meta.roles && to.meta.roles.length) {
+    let userInfo = {}
+    try {
+      userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    } catch (e) {
+      userInfo = {}
+    }
+    if (!to.meta.roles.includes(userInfo.role)) {
+      return '/dashboard'
+    }
   }
   // 更新页面标题
   document.title = to.meta.title ? `${to.meta.title} - WMS 仓储系统` : 'WMS 仓储系统'
