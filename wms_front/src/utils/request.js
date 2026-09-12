@@ -34,12 +34,17 @@ request.interceptors.response.use(
     return res.data
   },
   error => {
-    if (error.response && error.response.status === 401) {
+    const status = error.response && error.response.status
+    if (status === 401) {
       ElMessage.error('登录已过期，请重新登录')
       localStorage.removeItem('token')
       router.push('/login')
     } else {
-      ElMessage.error(error.message || '网络错误')
+      // 优先展示后端返回的业务提示（403 无权限 / 429 登录锁定 / 其他业务错误）
+      const msg = (error.response && error.response.data && error.response.data.message)
+        || error.message
+        || '网络错误'
+      ElMessage.error(msg)
     }
     return Promise.reject(error)
   }

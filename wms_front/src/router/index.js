@@ -17,6 +17,7 @@ const routes = [
       { path: 'stockin', name: 'StockIn', component: () => import('../views/StockIn.vue'), meta: { title: '入库管理' } },
       { path: 'stockout', name: 'StockOut', component: () => import('../views/StockOut.vue'), meta: { title: '出库管理' } },
       { path: 'stock', name: 'Stock', component: () => import('../views/Stock.vue'), meta: { title: '库存查询' } },
+      { path: 'stocktake', name: 'StockTake', component: () => import('../views/StockTake.vue'), meta: { title: '盘点管理' } },
       { path: 'report', name: 'Report', component: () => import('../views/Report.vue'), meta: { title: '决策报表' } },
       { path: 'user', name: 'User', component: () => import('../views/User.vue'), meta: { title: '用户管理', roles: ['ADMIN'] } }
     ]

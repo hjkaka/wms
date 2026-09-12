@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  日志配置（4.4 日志分级 + 请求日志）
+  - 控制台：彩色、按 profile 分级（dev=DEBUG / prod=INFO）
+  - 应用日志：滚动到 logs/wms.log（保留30天 / 上限500MB）
+  - 错误日志：独立 logs/wms-error.log（仅 ERROR+，排障快定位）
+  - 请求日志：独立 logs/wms-request.log（由 "REQUEST" logger 写入）
+  目录可用 -Dlog.dir=/path 覆盖（容器里可挂载 VOLUME）
+-->
+<configuration>
+
+    <property name="LOG_DIR" value="${log.dir:-./logs}"/>
+    <property name="CONSOLE_COLOR_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%5level) [%thread] %cyan(%logger{36}) - %msg%n"/>
+    <property name="FILE_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %5level [%thread] %logger{50} - %msg%n"/>
+
+    <!-- ===== 控制台 ===== -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>${CONSOLE_COLOR_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ===== 应用全量日志（滚动文件，日常检索） ===== -->
+    <appender name="APP_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/wms.log</file>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>${FILE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/wms.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- ===== 错误日志（仅 ERROR+，独立文件便于搜索） ===== -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/wms-error.log</file>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>${FILE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/wms-error.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- ===== 请求访问日志（method/uri/status/耗时/IP/操作人 一行一条） ===== -->
+    <appender name="REQUEST_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/wms-request.log</file>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/wms-request.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- 请求日志专用 logger：不继承到根，只写自己文件，不污染主日志 -->
+    <logger name="REQUEST" level="INFO" additivity="false">
+        <appender-ref ref="REQUEST_FILE"/>
+    </logger>
+
+    <!-- ===== 按 profile 分级：local/dev/test 用 debug，prod 用 info ===== -->
+    <springProfile name="default,dev,test">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="APP_FILE"/>
+            <appender-ref ref="ERROR_FILE"/>
+        </root>
+        <logger name="com.example.wms_backend" level="DEBUG" additivity="true"/>
+    </springProfile>
+
+    <springProfile name="prod">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="APP_FILE"/>
+            <appender-ref ref="ERROR_FILE"/>
+        </root>
+        <logger name="com.example.wms_backend" level="INFO" additivity="true"/>
+    </springProfile>
+
+</configuration>

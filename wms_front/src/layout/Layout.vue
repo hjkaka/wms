@@ -38,6 +38,10 @@
           <el-icon><DataLine /></el-icon>
           <span>库存查询</span>
         </el-menu-item>
+        <el-menu-item index="/stocktake">
+          <el-icon><Finished /></el-icon>
+          <span>盘点管理</span>
+        </el-menu-item>
         <el-menu-item index="/report">
           <el-icon><PieChart /></el-icon>
           <span>决策报表</span>

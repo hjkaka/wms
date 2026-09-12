@@ -10,6 +10,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    // 登录被锁定（s1-5 防爆破）→ 返回 429 JSON，HTTP 状态码同步 429
+    @ExceptionHandler(LoginLockedException.class)
+    public ResponseEntity<Result<?>> handleLoginLocked(LoginLockedException e) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(Result.error(429, e.getMessage()));
+    }
+
     // 越权访问（@PreAuthorize 拦截）→ 返回 403 JSON
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Result<?>> handleAccessDenied(AccessDeniedException e) {

@@ -8,6 +8,7 @@ import com.example.wms_backend.mapper.CategoryMapper;
 import com.example.wms_backend.mapper.ProductMapper;
 import com.example.wms_backend.mapper.StockInOrderMapper;
 import com.example.wms_backend.mapper.StockOutOrderMapper;
+import com.example.wms_backend.mapper.StockTakeOrderMapper;
 import com.example.wms_backend.mapper.SysUserMapper;
 import com.example.wms_backend.mapper.WarehouseMapper;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -51,6 +52,8 @@ public class AuditLogAspect {
     private StockInOrderMapper stockInOrderMapper;
     @Autowired
     private StockOutOrderMapper stockOutOrderMapper;
+    @Autowired
+    private StockTakeOrderMapper stockTakeOrderMapper;
 
     @Around("@annotation(auditLog)")
     public Object record(ProceedingJoinPoint pjp, AuditLog auditLog) throws Throwable {
@@ -97,6 +100,10 @@ public class AuditLogAspect {
             if ("stockout:REVERSE".equals(key) || "stockout:DELETE".equals(key)) {
                 Long id = (args != null && args.length > 0) ? (Long) args[0] : null;
                 return id == null ? null : stockOutOrderMapper.findById(id);
+            }
+            if ("stocktake:POST".equals(key)) {
+                Long id = (args != null && args.length > 0) ? (Long) args[0] : null;
+                return id == null ? null : stockTakeOrderMapper.findById(id);
             }
         } catch (Exception e) {
             log.warn("[audit] 读取旧值失败: {}", e.getMessage());
@@ -152,6 +159,9 @@ public class AuditLogAspect {
                 break;
             case "category:DELETE":
                 fillCategoryDelete(ent, (Category) old);
+                break;
+            case "stocktake:POST":
+                fillStockTake(ent, (StockTakeOrder) old);
                 break;
             default:
                 break;
@@ -332,6 +342,13 @@ public class AuditLogAspect {
         ent.setDetail(oldC != null
                 ? "删除分类: " + oldC.getName() + "(父#" + oldC.getParentId() + ")"
                 : "删除分类(旧值未捕获)");
+    }
+
+    private void fillStockTake(com.example.wms_backend.entity.AuditLog ent, StockTakeOrder o) {
+        if (o == null) return;
+        ent.setTargetId(o.getId());
+        ent.setTargetNo(o.getOrderNo());
+        ent.setDetail("盘点过账 单号" + o.getOrderNo() + " 仓库#" + o.getWarehouseId());
     }
 
     // ---------- 小工具 ----------
